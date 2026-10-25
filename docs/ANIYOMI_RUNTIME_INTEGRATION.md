@@ -25,6 +25,12 @@ Upstream references:
 - https://github.com/aniyomiorg/aniyomi-extensions
 - https://extension-docs.aniyomi.org/
 
+## First runtime code milestone: package preflight
+
+Added `com.animewave.app.aniyomi.AniyomiExtensionInspector` to inspect installed packages that declare the official anime-extension feature. It reports extension name, package/version, extension-lib version, declared source entry points, and SHA-256 signer fingerprints. It rejects candidates with missing version metadata, missing signatures, unsupported library versions, or missing entry points before any class loading is attempted. The Android manifest declares package visibility for this sideloaded Android TV use case.
+
+**This is discovery/preflight, not extension execution.** A candidate marked `REQUIRES_TRUST_AND_HOST` is not loaded. The trust store and exact runtime ABI must be present before loading. In particular, the pinned Aniyomi v0.18.2.1 host supports extension-lib v17, but a metadata inspector alone cannot implement that ABI.
+
 ## Upstream loader audit (v0.18.2.1)
 
 The pinned upstream host's real loading path has now been traced to these files:
