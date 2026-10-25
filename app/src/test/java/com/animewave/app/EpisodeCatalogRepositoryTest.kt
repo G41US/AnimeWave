@@ -9,11 +9,11 @@ class EpisodeCatalogRepositoryTest {
     @Test
     fun mergesEpisodesFromMultipleAdaptersAndKeepsSourceIdentity() = runBlocking {
         val first = FakeAdapter(
-            name = "Source A",
+            displayName = "Source A",
             episodes = listOf(episode("a", "Source A", 2), episode("a", "Source A", 1)),
         )
         val second = FakeAdapter(
-            name = "Source B",
+            displayName = "Source B",
             episodes = listOf(episode("b", "Source B", 1)),
         )
 
@@ -22,7 +22,7 @@ class EpisodeCatalogRepositoryTest {
         assertTrue(result is EpisodeCatalogState.Ready)
         val ready = result as EpisodeCatalogState.Ready
         assertEquals(2, ready.checkedSources)
-        assertEquals(listOf(1, 1, 2), ready.seasons.single().episodes.map { it.number }.sorted())
+        assertEquals(listOf(1, 1, 2), ready.seasons.single().episodes.mapNotNull { it.number }.sorted())
         assertEquals(setOf("a", "b"), ready.seasons.single().episodes.map { it.sourceId }.toSet())
     }
 
