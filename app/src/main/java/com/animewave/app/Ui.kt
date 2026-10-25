@@ -954,7 +954,15 @@ private fun SettingsCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onDownload: (UpdateInfo) -> Unit, onInstall: (File) -> Unit) {
+fun SettingsScreen(
+    version: String,
+    state: UpdateState,
+    onCheck: () -> Unit,
+    onDownload: (UpdateInfo) -> Unit,
+    onInstall: (File) -> Unit,
+    consumetBaseUrl: String,
+    onConsumetBaseUrlChange: (String) -> Unit,
+) {
     Column(Modifier.padding(horizontal = gutter).widthIn(max = 720.dp)) {
         SettingsCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1002,6 +1010,39 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
                 UpdateState.Checking -> GhostButton("Checking…", Icons.Filled.Refresh) {}
                 else -> PrimaryButton("Check for updates", Icons.Filled.Refresh, onClick = onCheck)
             }
+        }
+        SettingsCard {
+            Text("Episode discovery API", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Optional. Enter the HTTPS base URL of a Consumet-compatible API instance you control. AnimeWave does not assume a public API is available.",
+                color = Soft, fontSize = 14.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = consumetBaseUrl,
+                onValueChange = onConsumetBaseUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API base URL") },
+                placeholder = { Text("https://your-api.example.com") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Violet,
+                    unfocusedBorderColor = Muted,
+                    focusedLabelColor = Violet,
+                    unfocusedLabelColor = Muted,
+                    cursorColor = Violet,
+                ),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (consumetBaseUrl.isBlank()) "Status: disabled — AniList catalogue remains available."
+                else "Status: configured — AnimeWave will try this API for episode lists and direct streams.",
+                color = Muted, fontSize = 13.sp,
+            )
         }
         SettingsCard {
             Text("Install on another device", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)
