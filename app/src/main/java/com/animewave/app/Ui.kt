@@ -671,7 +671,7 @@ fun DetailContent(
                     Spacer(Modifier.height(10.dp))
                     AnimeSourceRegistry.sources.forEach { source ->
                         val isMetadataOnly = source.id == "listed"
-                        val adapterConnected = isMetadataOnly
+                        val adapterConnected = isMetadataOnly || source.id == "consumet"
                         TextButton(onClick = {
                             onSourceSelected(source.id)
                             showSourcePicker = false
@@ -684,6 +684,7 @@ fun DetailContent(
                                 Text(
                                     text = when {
                                         isMetadataOnly -> "Metadata links only"
+                                        source.id == "consumet" -> "Configure API in Settings"
                                         adapterConnected -> "Episode search connected"
                                         else -> "Episode search not connected yet"
                                     },
