@@ -645,6 +645,11 @@ fun DetailContent(
             PrimaryButton(official?.let { "Watch on ${it.first}" } ?: "Watch", Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onWatch(official?.second) }
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
+            if (selectedSource.id != "listed") {
+                GhostButton("Browse ${selectedSource.displayName}", Icons.Filled.PlayArrow) {
+                    onOpen(selectedSource.homeUrl)
+                }
+            }
             GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
         }
     }
