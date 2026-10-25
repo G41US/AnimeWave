@@ -86,6 +86,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -109,6 +110,9 @@ private val Brand = Brush.linearGradient(listOf(Violet, Pink))
 
 /** True on TVs and tablets: top tabs, bigger type, wider margins for TV overscan. */
 val LocalWide = staticCompositionLocalOf { false }
+
+/** Top bar to overlay on the Home hero; other screens get it above their content from Shell. */
+val LocalTopBar = staticCompositionLocalOf<@Composable () -> Unit> { {} }
 
 /** Test hook so screenshot tests can supply artwork without the network. */
 val LocalImageOverride = staticCompositionLocalOf<(String?) -> Painter?> { { null } }
@@ -149,9 +153,7 @@ fun Art(url: String?, modifier: Modifier, description: String? = null) {
 @Composable
 fun Logo(size: Int = 24) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size((size * 1.5).dp).background(Brand, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Text("A", fontSize = size.sp, fontWeight = FontWeight.Black, color = Color.White)
-        }
+        Image(painterResource(R.drawable.app_logo), contentDescription = null, modifier = Modifier.size((size * 1.9).dp))
         Spacer(Modifier.width(10.dp))
         Text("ANIME", fontSize = size.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp, color = Color.White)
         Text("WAVE", fontSize = size.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp, style = TextStyle(brush = Brand))
@@ -160,11 +162,11 @@ fun Logo(size: Int = 24) {
 
 /** Top bar. On wide screens it holds the tabs; on phones the tabs live in [BottomTabs]. */
 @Composable
-fun TopBar(tab: String, tabFocus: FocusRequester, scrolled: Boolean, update: Boolean, onTab: (String) -> Unit) {
+fun TopBar(tab: String, tabFocus: FocusRequester, update: Boolean, onTab: (String) -> Unit) {
     val wide = LocalWide.current
     Row(
         Modifier.fillMaxWidth()
-            .background(Brush.verticalGradient(if (scrolled) listOf(Ink, Ink) else listOf(Ink.copy(alpha = .85f), Color.Transparent)))
+            .background(Brush.verticalGradient(listOf(Ink.copy(alpha = .85f), Color.Transparent)))
             .statusBarsPadding()
             .padding(horizontal = gutter, vertical = if (wide) 22.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -822,18 +824,16 @@ fun LinkDialog(onDismiss: () -> Unit, onPlay: (String) -> Unit) {
 // ---------- Screens ----------
 
 @Composable
-fun TopSpace() {
-    Spacer(Modifier.statusBarsPadding().height(if (LocalWide.current) 96.dp else 66.dp))
-}
-
-@Composable
 fun HomeContent(
     home: Loaded<Map<String, List<Anime>>>, saved: Set<Int>, heroFocus: FocusRequester,
     onPick: (Anime) -> Unit, onWatch: (Anime) -> Unit, onToggleSave: (Anime) -> Unit,
 ) {
     val trending = home.value?.get("trending").orEmpty()
-    if (trending.isEmpty()) HeroPlaceholder(home.failed, home.retry)
-    else Hero(trending.take(5), saved, heroFocus, onWatch, onPick, onToggleSave)
+    Box {
+        if (trending.isEmpty()) HeroPlaceholder(home.failed, home.retry)
+        else Hero(trending.take(5), saved, heroFocus, onWatch, onPick, onToggleSave)
+        LocalTopBar.current()
+    }
     // Rows tuck up into the hero's fade for a layered look.
     Column(Modifier.offset(y = if (LocalWide.current) (-40).dp else (-12).dp)) {
         Top10Row(home.map { it["trending"].orEmpty() }, onPick)
@@ -864,9 +864,7 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
     Column(Modifier.padding(horizontal = gutter).widthIn(max = 720.dp)) {
         SettingsCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(52.dp).background(Brand, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                    Text("A", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White)
-                }
+                Image(painterResource(R.drawable.app_logo), contentDescription = null, modifier = Modifier.size(64.dp))
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text("AnimeWave", fontSize = 22.sp, fontWeight = FontWeight.Black)

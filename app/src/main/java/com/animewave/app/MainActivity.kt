@@ -40,7 +40,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -143,14 +142,13 @@ fun Shell(
         contentWindowInsets = WindowInsets(0),
         bottomBar = { if (!wide) BottomTabs(tab, onTab) },
     ) { inner ->
-        Box(Modifier.fillMaxSize().padding(inner)) {
-            Column(Modifier.fillMaxSize().verticalScroll(scroll).imePadding()) {
-                content()
-                Spacer(Modifier.navigationBarsPadding().height(32.dp))
-            }
-            // derivedStateOf: recompose only when crossing the threshold, not on every scrolled pixel.
-            val scrolled by remember(scroll) { derivedStateOf { scroll.value > 150 } }
-            TopBar(tab, tabFocus, scrolled = scrolled, update = update, onTab = onTab)
+        // The top bar lives inside the scrolling page (not floating over it) so the TV remote can move
+        // Down from the tabs into the content. On Home, HomeContent overlays it on the hero itself.
+        val bar: @Composable () -> Unit = { TopBar(tab, tabFocus, update = update, onTab = onTab) }
+        Column(Modifier.fillMaxSize().padding(inner).verticalScroll(scroll).imePadding()) {
+            if (tab == "Home") CompositionLocalProvider(LocalTopBar provides bar) { content() }
+            else { bar(); content() }
+            Spacer(Modifier.navigationBarsPadding().height(32.dp))
         }
     }
 }
@@ -259,13 +257,11 @@ fun AnimeWaveApp() {
                         onToggleSave = { toggleSaved(it.id) },
                     )
                     "Discover" -> {
-                        TopSpace()
                         ScreenTitle("Discover", "The most popular anime in every genre")
                         GenreChips(genre) { genre = it }
                         AnimeGrid(load(genre) { AniList.genre(genre) }, onPick = pick)
                     }
                     "Search" -> {
-                        TopSpace()
                         ScreenTitle("Search")
                         SearchBox(query) { query = it }
                         if (query.isBlank()) {
@@ -278,7 +274,6 @@ fun AnimeWaveApp() {
                         }
                     }
                     "My List" -> {
-                        TopSpace()
                         ScreenTitle("My List", if (saved.isEmpty()) null else "${saved.size} saved")
                         AnimeGrid(
                             load(saved) { if (saved.isEmpty()) emptyList() else AniList.byIds(saved) },
@@ -286,7 +281,6 @@ fun AnimeWaveApp() {
                         )
                     }
                     "Settings" -> {
-                        TopSpace()
                         ScreenTitle("Settings")
                         SettingsScreen(
                             version = remember { Updates.installedName(context) },
@@ -299,7 +293,6 @@ fun AnimeWaveApp() {
                         )
                     }
                     else -> {
-                        TopSpace()
                         ScreenTitle("Player", "Your own videos and stream links")
                         PlayerHome(
                             episodes,
