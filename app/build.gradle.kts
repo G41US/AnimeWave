@@ -26,8 +26,14 @@ android {
         }
     }
     buildTypes {
-        debug {
-            if (!System.getenv("SIGNING_PASSWORD").isNullOrEmpty()) signingConfig = signingConfigs.getByName("animewave")
+        // Release = optimised and shrunk by R8; much faster than debug on TV boxes.
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName(
+                if (System.getenv("SIGNING_PASSWORD").isNullOrEmpty()) "debug" else "animewave"
+            )
         }
     }
     buildFeatures { compose = true }
@@ -39,6 +45,7 @@ android {
 }
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")

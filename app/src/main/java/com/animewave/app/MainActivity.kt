@@ -1,5 +1,6 @@
 package com.animewave.app
 
+import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,6 +40,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +56,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import coil.Coil
+import coil.ImageLoader
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -61,7 +69,17 @@ private val PickTypes = arrayOf(
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen() // icon on dark background the instant the app is tapped
         super.onCreate(savedInstanceState)
+        val lowRam = getSystemService(ActivityManager::class.java).isLowRamDevice ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) // TV boxes: little RAM, slow GPUs
+        Coil.setImageLoader(
+            ImageLoader.Builder(this)
+                .crossfade(200)
+                .allowRgb565(lowRam) // half the memory per image; artwork has no transparency
+                .respectCacheHeaders(false) // keep posters on disk instead of re-downloading
+                .build()
+        )
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -74,6 +92,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun <T> load(vararg keys: Any?, block: suspend () -> T): Loaded<T> {
     var attempt by remember { mutableIntStateOf(0) }
+    val retry: () -> Unit = remember { { attempt++ } }
     var value by remember(*keys) { mutableStateOf<T?>(null) }
     var failed by remember(*keys) { mutableStateOf(false) }
     LaunchedEffect(*keys, attempt) {
@@ -86,7 +105,7 @@ private fun <T> load(vararg keys: Any?, block: suspend () -> T): Loaded<T> {
             failed = true
         }
     }
-    return Loaded(value, failed) { attempt++ }
+    return Loaded(value, failed, retry)
 }
 
 private fun toast(context: Context, msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
@@ -129,7 +148,9 @@ fun Shell(
                 content()
                 Spacer(Modifier.navigationBarsPadding().height(32.dp))
             }
-            TopBar(tab, tabFocus, scrolled = scroll.value > 150, update = update, onTab = onTab)
+            // derivedStateOf: recompose only when crossing the threshold, not on every scrolled pixel.
+            val scrolled by remember(scroll) { derivedStateOf { scroll.value > 150 } }
+            TopBar(tab, tabFocus, scrolled = scrolled, update = update, onTab = onTab)
         }
     }
 }
@@ -146,6 +167,7 @@ fun AnimeWaveApp() {
     var episodes by remember { mutableStateOf<List<LocalEpisode<Uri>>>(emptyList()) }
     var playing by remember { mutableStateOf<Pair<List<MediaItem>, Int>?>(null) }
     var askLink by remember { mutableStateOf(false) }
+    var showIntro by rememberSaveable { mutableStateOf(true) }
     val scroll = rememberScrollState()
     val tabFocus = remember { FocusRequester() }
     val heroFocus = remember { FocusRequester() }
@@ -208,6 +230,7 @@ fun AnimeWaveApp() {
     }
 
     AnimeWaveTheme(wide) {
+      Box(Modifier.fillMaxSize()) {
         val nowPlaying = playing
         val anime = selected
         when {
@@ -298,5 +321,10 @@ fun AnimeWaveApp() {
             askLink = false
             playing = listOf(MediaItem.fromUri(url)) to 0
         }
+        // Title screen on top while the catalog loads underneath.
+        AnimatedVisibility(showIntro, exit = fadeOut(tween(450))) {
+            IntroScreen(ready = { home.value != null || home.failed }) { showIntro = false }
+        }
+      }
     }
 }
