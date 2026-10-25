@@ -123,7 +123,7 @@ class AniyomiExtensionInspector(context: Context) {
     }
 }
 
-private fun String?.parseClassNames(): List<String> =
+internal fun String?.parseClassNames(): List<String> =
     this.orEmpty().split(';').map(String::trim).filter(String::isNotBlank)
 
 data class ExtensionCandidate(
