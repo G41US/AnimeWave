@@ -10,7 +10,7 @@ import androidx.media3.ui.PlayerView
 
 /**
  * Native renderer for direct media URLs the app is allowed to play.
- * Provider pages with JavaScript-based players should remain in the embedded WebView.
+ * Provider pages with JavaScript-based players must be opened in the device's external browser; this controller handles direct media URLs only.
  */
 class NativePlayerController(
     private val playerView: PlayerView,
