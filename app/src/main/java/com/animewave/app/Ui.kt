@@ -610,6 +610,7 @@ fun SearchBox(query: String, onChange: (String) -> Unit) {
 fun DetailContent(
     anime: Anime, saved: Boolean, watchFocus: FocusRequester,
     onBack: () -> Unit, onWatch: (String?) -> Unit, onOpen: (String) -> Unit,
+    onPlayEpisode: (Episode) -> Unit,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
 ) {
     val wide = LocalWide.current
@@ -707,7 +708,11 @@ fun DetailContent(
                     contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(anime.streamingEpisodes) { ep -> EpisodeCard(ep) { onOpen(ep.url) } }
+                    items(anime.streamingEpisodes) { ep ->
+                        EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
+                            onPlayEpisode(ep)
+                        }
+                    }
                 }
             }
             if (wide && anime.synopsis.length > 280) {
@@ -719,7 +724,7 @@ fun DetailContent(
 }
 
 @Composable
-private fun EpisodeCard(ep: Episode, onClick: () -> Unit) {
+private fun EpisodeCard(ep: Episode, nativeAvailable: Boolean, onClick: () -> Unit) {
     val wide = LocalWide.current
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "ep")
@@ -746,6 +751,7 @@ private fun EpisodeCard(ep: Episode, onClick: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
         Text(ep.title, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPEN OFFICIAL SOURCE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
