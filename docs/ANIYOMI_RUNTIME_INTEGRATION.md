@@ -1,5 +1,9 @@
 # Aniyomi source runtime integration
 
+## Pinned upstream target
+
+The integration target is **Aniyomi v0.18.2.1**, with extension API major version 17. The version pin is recorded in `gradle/aniyomi-runtime.properties`. Upstream release notes say v0.18.2.1 added extensions-lib v17 support. See [upstream release notes](https://aniyomi.org/changelogs/) and [source repository](https://github.com/aniyomiorg/aniyomi/tree/v0.18.2.1).
+
 ## Current status
 
 AnimeWave now has a Media3 playback boundary in `com.animewave.app.playback`.
@@ -26,11 +30,11 @@ Upstream references:
 
 ## Integration steps
 
-1. Choose and pin one exact Aniyomi commit/tag. Record its extension-lib API
-   version and license notices in the repository.
+1. The version target is pinned at `v0.18.2.1` (extension API major 17; Apache-2.0).
 2. Vendor or include the required host modules from that exact revision as
-   Gradle subprojects. Resolve their transitive dependencies and Android
-   namespace/build plugin requirements rather than inventing Maven coordinates.
+   Gradle subprojects. The upstream build includes `:source-api`, `:core:common`,
+   `:domain`, and `:data` among other modules. Resolve their transitive dependencies
+   and Android namespace/build plugin requirements rather than inventing Maven coordinates.
 3. Implement the host-side extension manager: installed extension discovery,
    package/signature/version validation, class loading, source registration,
    extension context/services, and lifecycle/error handling. Never load an
