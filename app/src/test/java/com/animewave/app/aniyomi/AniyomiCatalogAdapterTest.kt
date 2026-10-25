@@ -60,6 +60,15 @@ class AniyomiCatalogAdapterTest {
         assertEquals("https://source.example/episode/1", seasons.single().episodes.single().pageUrl)
     }
 
+    @Test
+    fun rejectsStreamResolutionForEpisodeNotInCatalogue() = runBlocking {
+        val runtime = FakeRuntime()
+        val adapter = AniyomiCatalogAdapter(runtime, HostAnimeSource(42L, "Example", "en"))
+
+        val error = runCatching { adapter.resolveEpisode("unseen-episode") }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+    }
     private class FakeRuntime : AniyomiHostRuntime {
         val queries = mutableListOf<String>()
         var videos: List<HostVideo> = listOf(HostVideo(url = "https://cdn.example/video.mp4"))
