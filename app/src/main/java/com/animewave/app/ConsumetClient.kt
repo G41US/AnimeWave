@@ -98,7 +98,7 @@ class ConsumetClient(
     /** Backwards-compatible URL-only accessor. */
     suspend fun getPlayableUrl(episodeId: String): String = getPlayableStream(episodeId).url
 
-    private fun parseHeaders(json: JSONObject?): Map<String, String> {
+    internal fun parseHeaders(json: JSONObject?): Map<String, String> {
         if (json == null) return emptyMap()
         return json.keys().asSequence().mapNotNull { key ->
             val value = json.optString(key).takeIf { it.isNotBlank() && it != "null" }
