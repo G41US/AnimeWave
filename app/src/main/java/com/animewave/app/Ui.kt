@@ -610,8 +610,12 @@ fun SearchBox(query: String, onChange: (String) -> Unit) {
 fun DetailContent(
     anime: Anime, saved: Boolean, watchFocus: FocusRequester,
     onBack: () -> Unit, onWatch: (String?) -> Unit, onOpen: (String) -> Unit,
+    onPlayEpisode: (Episode) -> Unit,
+    selectedSourceId: String, onSourceSelected: (String) -> Unit,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
 ) {
+    var showSourcePicker by remember { mutableStateOf(false) }
+    val selectedSource = AnimeSourceRegistry.byId(selectedSourceId)
     val wide = LocalWide.current
     val screenH = LocalConfiguration.current.screenHeightDp.dp
     val official = anime.watchLinks.firstOrNull()
@@ -640,6 +644,7 @@ fun DetailContent(
             PrimaryButton(official?.let { "Watch on ${it.first}" } ?: "Watch", Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onWatch(official?.second) }
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
+            GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
         }
     }
     val poster: @Composable (Dp) -> Unit = { w ->
@@ -647,6 +652,32 @@ fun DetailContent(
         Box(Modifier.width(w).aspectRatio(2f / 3f).shadow(24.dp, shape).clip(shape).background(accent)) {
             Art(anime.coverXL, Modifier.fillMaxSize(), anime.title)
         }
+    }
+
+    if (showSourcePicker) {
+        AlertDialog(
+            onDismissRequest = { showSourcePicker = false },
+            containerColor = Panel,
+            title = { Text("Choose a source") },
+            text = {
+                Column {
+                    Text("Choose the preferred source for episode links. Sources not yet integrated open their website; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
+                    Spacer(Modifier.height(10.dp))
+                    AnimeSourceRegistry.sources.forEach { source ->
+                        TextButton(onClick = {
+                            onSourceSelected(source.id)
+                            showSourcePicker = false
+                        }) {
+                            Text(
+                                text = (if (source.id == selectedSourceId) "✓  " else "") + source.displayName,
+                                color = if (source.id == selectedSourceId) Violet else Color.White,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSourcePicker = false }) { Text("Close") } },
+        )
     }
 
     Column {
@@ -707,7 +738,11 @@ fun DetailContent(
                     contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(anime.streamingEpisodes) { ep -> EpisodeCard(ep) { onOpen(ep.url) } }
+                    items(anime.streamingEpisodes) { ep ->
+                        EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
+                            onPlayEpisode(ep)
+                        }
+                    }
                 }
             }
             if (wide && anime.synopsis.length > 280) {
@@ -719,7 +754,7 @@ fun DetailContent(
 }
 
 @Composable
-private fun EpisodeCard(ep: Episode, onClick: () -> Unit) {
+private fun EpisodeCard(ep: Episode, nativeAvailable: Boolean, onClick: () -> Unit) {
     val wide = LocalWide.current
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "ep")
@@ -746,6 +781,7 @@ private fun EpisodeCard(ep: Episode, onClick: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
         Text(ep.title, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPEN OFFICIAL SOURCE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
