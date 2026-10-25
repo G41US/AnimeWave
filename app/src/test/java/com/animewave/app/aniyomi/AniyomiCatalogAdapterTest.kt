@@ -69,6 +69,32 @@ class AniyomiCatalogAdapterTest {
 
         assertTrue(error is IllegalArgumentException)
     }
+    @Test
+    fun streamUrlValidationRejectsCredentialsAndNonNetworkSchemes() {
+        val validate = AniyomiCatalogAdapter::class.java
+            .getDeclaredMethod("isHttpUrl", String::class.java)
+            .apply { isAccessible = true }
+
+        fun isAccepted(url: String): Boolean =
+            validate.invoke(adapterForValidation(), url) as Boolean
+
+        assertTrue(isAccepted("https://cdn.example/video.m3u8"))
+        assertTrue(isAccepted("HTTP://cdn.example/video.mp4"))
+        assertTrue(!isAccepted("https://user:password@cdn.example/video.mp4"))
+        assertTrue(!isAccepted("file:///data/local/video.mp4"))
+        assertTrue(!isAccepted("javascript:alert(1)"))
+        assertTrue(!isAccepted("https:///missing-host"))
+    }
+
+    private fun adapterForValidation() =
+        AniyomiCatalogAdapter(object : AniyomiHostRuntime {
+            override suspend fun installedSources() = emptyList<HostAnimeSource>()
+            override suspend fun search(sourceId: Long, query: String) = emptyList<HostAnimeMatch>()
+            override suspend fun seasons(sourceId: Long, animeKey: String) = emptyList<HostAnimeSeason>()
+            override suspend fun episodes(sourceId: Long, animeKey: String) = emptyList<HostAnimeEpisode>()
+            override suspend fun resolveVideos(sourceId: Long, episodeKey: String) = emptyList<HostVideo>()
+        }, HostAnimeSource(1L, "Validation", "en"))
+
     private class FakeRuntime : AniyomiHostRuntime {
         val queries = mutableListOf<String>()
         var videos: List<HostVideo> = listOf(HostVideo(url = "https://cdn.example/video.mp4"))
