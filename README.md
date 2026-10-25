@@ -13,6 +13,11 @@ Anime-only Android app starter for Android phones and Android TV / Airtel Smart 
 ## Cloud build
 Every push to `main` runs unit tests and builds a debug APK in GitHub Actions. Download it from the run's **AnimeWave-debug-apk** artifact.
 
+## Updates and signing
+- Install with Downloader code **5118333**. After that, **Settings (gear icon) → Check for updates** downloads and installs new versions in the app, and an **Update** button appears in the top bar when one is out.
+- Every cloud build gets a higher version (`1.0.<run number>`) and is signed with `signing/animewave-release.jks`. The keystore is encrypted; its password lives only in the `SIGNING_PASSWORD` repo secret. Builds are published only when that secret is set, so installed copies always update in place.
+- Keep a backup of the keystore and password. Without them, future builds can't update installed copies.
+
 ## Build
 Requirements: Android Studio, JDK 17, Android SDK Platform 35.
 

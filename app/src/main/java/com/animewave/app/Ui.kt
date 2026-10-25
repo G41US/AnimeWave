@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -49,6 +51,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -92,6 +95,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import java.io.File
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 
@@ -157,7 +161,7 @@ fun Logo(size: Int = 24) {
 
 /** Top bar. On wide screens it holds the tabs; on phones the tabs live in [BottomTabs]. */
 @Composable
-fun TopBar(tab: String, tabFocus: FocusRequester, scrolled: Boolean, onTab: (String) -> Unit) {
+fun TopBar(tab: String, tabFocus: FocusRequester, scrolled: Boolean, update: Boolean, onTab: (String) -> Unit) {
     val wide = LocalWide.current
     Row(
         Modifier.fillMaxWidth()
@@ -168,9 +172,46 @@ fun TopBar(tab: String, tabFocus: FocusRequester, scrolled: Boolean, onTab: (Str
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Logo(if (wide) 24 else 20)
-        if (wide) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Tabs.forEach { t -> TopTab(t, t == tab, if (t == tab) tabFocus else null) { onTab(t) } }
+        Row(horizontalArrangement = Arrangement.spacedBy(if (wide) 4.dp else 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (wide) Tabs.forEach { t -> TopTab(t, t == tab, if (t == tab) tabFocus else null) { onTab(t) } }
+            if (update) UpdatePill { onTab("Settings") }
+            IconTab(Icons.Filled.Settings, "Settings", tab == "Settings", if (tab == "Settings") tabFocus else null) { onTab("Settings") }
         }
+    }
+}
+
+@Composable
+private fun UpdatePill(onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.08f else 1f, label = "pill")
+    Row(
+        Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+            .onFocusChanged { focused = it.hasFocus }
+            .clip(RoundedCornerShape(50))
+            .background(if (focused) Brush.linearGradient(listOf(Color.White, Color.White)) else Brand)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = if (focused) Ink else Color.White, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(4.dp))
+        Text("Update", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (focused) Ink else Color.White)
+    }
+}
+
+@Composable
+private fun IconTab(icon: ImageVector, label: String, active: Boolean, focus: FocusRequester?, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
+            .onFocusChanged { focused = it.hasFocus }
+            .clip(CircleShape)
+            .background(if (focused) Color.White else if (active) Violet.copy(alpha = .35f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(9.dp),
+    ) {
+        Icon(icon, contentDescription = label, tint = when { focused -> Ink; active -> Color.White; else -> Muted }, modifier = Modifier.size(24.dp))
     }
 }
 
@@ -803,5 +844,82 @@ fun HomeContent(
             "Anime info from AniList.co  ·  Watch opens official streaming services",
             color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 28.dp),
         )
+    }
+}
+
+// ---------- Settings & updates ----------
+
+@Composable
+private fun SettingsCard(content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(20.dp)).background(Panel)
+            .border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(20.dp))
+            .padding(22.dp)
+    ) { content() }
+}
+
+@Composable
+fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onDownload: (UpdateInfo) -> Unit, onInstall: (File) -> Unit) {
+    Column(Modifier.padding(horizontal = gutter).widthIn(max = 720.dp)) {
+        SettingsCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(52.dp).background(Brand, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                    Text("A", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White)
+                }
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text("AnimeWave", fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    Text("Version $version", color = Muted, fontSize = 14.sp)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Text("Updates", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                when (state) {
+                    UpdateState.Idle -> "Check for the newest version of AnimeWave."
+                    UpdateState.Checking -> "Checking for updates…"
+                    UpdateState.UpToDate -> "You're on the latest version."
+                    is UpdateState.Available -> "Version ${state.info.versionName} is available."
+                    is UpdateState.Downloading -> "Downloading version ${state.info.versionName}…"
+                    is UpdateState.Ready -> "Version ${state.info.versionName} is downloaded. Install it to update; your My List is kept."
+                    is UpdateState.Failed -> state.message
+                },
+                fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Color.White,
+            )
+            val notes = when (state) {
+                is UpdateState.Available -> state.info.notes
+                is UpdateState.Ready -> state.info.notes
+                else -> ""
+            }
+            if (notes.isNotBlank()) Text("What's new: $notes", color = Soft, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            if (state is UpdateState.Downloading) {
+                Spacer(Modifier.height(14.dp))
+                LinearProgressIndicator(
+                    progress = { state.progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                    color = Violet, trackColor = Color.White.copy(alpha = .1f),
+                )
+            }
+            Spacer(Modifier.height(18.dp))
+            when (state) {
+                is UpdateState.Available -> PrimaryButton("Download & install", Icons.Filled.KeyboardArrowDown) { onDownload(state.info) }
+                is UpdateState.Ready -> PrimaryButton("Install update", Icons.Filled.Check) { onInstall(state.apk) }
+                is UpdateState.Downloading -> GhostButton("Downloading ${(state.progress * 100).toInt().coerceAtLeast(0)}%", Icons.Filled.KeyboardArrowDown) {}
+                UpdateState.Checking -> GhostButton("Checking…", Icons.Filled.Refresh) {}
+                else -> PrimaryButton("Check for updates", Icons.Filled.Refresh, onClick = onCheck)
+            }
+        }
+        SettingsCard {
+            Text("Install on another device", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("5118333", fontSize = 40.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp, style = TextStyle(brush = Brand))
+                Spacer(Modifier.width(12.dp))
+                Text("Downloader code", color = Muted, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            Text("github.com/G41US/AnimeWave/releases", color = Soft, fontSize = 14.sp)
+        }
     }
 }

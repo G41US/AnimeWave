@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 private val PickTypes = arrayOf(
@@ -112,7 +114,10 @@ fun AnimeWaveTheme(wide: Boolean, content: @Composable () -> Unit) {
 
 /** Scrolling page with the floating top bar, plus bottom tabs on phones. */
 @Composable
-fun Shell(tab: String, onTab: (String) -> Unit, tabFocus: FocusRequester, scroll: ScrollState, content: @Composable ColumnScope.() -> Unit) {
+fun Shell(
+    tab: String, onTab: (String) -> Unit, tabFocus: FocusRequester, scroll: ScrollState,
+    update: Boolean = false, content: @Composable ColumnScope.() -> Unit,
+) {
     val wide = LocalWide.current
     Scaffold(
         containerColor = Ink, contentColor = Color.White,
@@ -124,7 +129,7 @@ fun Shell(tab: String, onTab: (String) -> Unit, tabFocus: FocusRequester, scroll
                 content()
                 Spacer(Modifier.navigationBarsPadding().height(32.dp))
             }
-            TopBar(tab, tabFocus, scrolled = scroll.value > 150, onTab = onTab)
+            TopBar(tab, tabFocus, scrolled = scroll.value > 150, update = update, onTab = onTab)
         }
     }
 }
@@ -164,6 +169,32 @@ fun AnimeWaveApp() {
         if (picked.isNotEmpty()) episodes = picked
         else if (uris.isNotEmpty()) toast(context, "No video files in that selection.")
     }
+    val scope = rememberCoroutineScope()
+    var update by remember { mutableStateOf<UpdateState>(UpdateState.Idle) }
+    fun checkForUpdate(quiet: Boolean) = scope.launch {
+        update = UpdateState.Checking
+        update = try {
+            val info = Updates.latest()
+            if (info.versionCode > Updates.installedCode(context)) UpdateState.Available(info) else UpdateState.UpToDate
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (quiet) UpdateState.Idle else UpdateState.Failed("Couldn't check for updates. Check your connection and try again.")
+        }
+    }
+    fun downloadUpdate(info: UpdateInfo) = scope.launch {
+        update = UpdateState.Downloading(info, 0f)
+        update = try {
+            val apk = Updates.download(context) { p -> update = UpdateState.Downloading(info, p) }
+            if (!Updates.install(context, apk)) toast(context, "Allow AnimeWave to install apps, then come back and tap Install update.")
+            UpdateState.Ready(info, apk)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            UpdateState.Failed("Download failed: ${e.message ?: "unknown error"}. Try again.")
+        }
+    }
+    LaunchedEffect(Unit) { checkForUpdate(quiet = true) }
     val home = load(Unit) { AniList.home() }
     val homeReady = home.value != null
 
@@ -193,7 +224,10 @@ fun AnimeWaveApp() {
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
                 }
             }
-            else -> Shell(tab, { tab = it }, tabFocus, scroll) {
+            else -> Shell(
+                tab, { tab = it }, tabFocus, scroll,
+                update = update is UpdateState.Available || update is UpdateState.Downloading || update is UpdateState.Ready,
+            ) {
                 val pick: (Anime) -> Unit = { selected = it }
                 when (tab) {
                     "Home" -> HomeContent(
@@ -226,6 +260,19 @@ fun AnimeWaveApp() {
                         AnimeGrid(
                             load(saved) { if (saved.isEmpty()) emptyList() else AniList.byIds(saved) },
                             empty = "Nothing saved yet. Open any anime and tap My List.", onPick = pick,
+                        )
+                    }
+                    "Settings" -> {
+                        TopSpace()
+                        ScreenTitle("Settings")
+                        SettingsScreen(
+                            version = remember { Updates.installedName(context) },
+                            state = update,
+                            onCheck = { checkForUpdate(quiet = false) },
+                            onDownload = { downloadUpdate(it) },
+                            onInstall = { apk ->
+                                if (!Updates.install(context, apk)) toast(context, "Allow AnimeWave to install apps, then tap Install update again.")
+                            },
                         )
                     }
                     else -> {

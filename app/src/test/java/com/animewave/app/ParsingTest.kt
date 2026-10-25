@@ -36,6 +36,11 @@ class ParsingTest {
         parseResponse("""{"data":null,"errors":[{"message":"Too Many Requests"}]}""")
     }
 
+    @Test fun parsesUpdateInfo() {
+        val u = parseUpdate("""{"versionCode":14,"versionName":"1.0.14","notes":"Redesign"}""")
+        assertEquals(UpdateInfo(14, "1.0.14", "Redesign"), u)
+    }
+
     @Test fun ordersEpisodesAndMatchesSubtitles() {
         val names = listOf("Show E10.mkv", "Show E2.mkv", "Show E2.srt", "Show E10.en.vtt", "notes.txt", "Show E1.mp4")
         val eps = pairEpisodes(names.map { LocalFile(it, it) })
