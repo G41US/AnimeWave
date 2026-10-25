@@ -646,8 +646,8 @@ fun DetailContent(
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
             if (selectedSource.id != "listed") {
-                GhostButton("Browse ${selectedSource.displayName}", Icons.Filled.PlayArrow) {
-                    onOpen(selectedSource.homeUrl)
+                GhostButton("Search ${selectedSource.displayName}", Icons.Filled.Search) {
+                    onOpen(AnimeSourceRegistry.searchUrl(selectedSource.id, anime.title))
                 }
             }
             GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
