@@ -33,4 +33,21 @@ object AnimeSourceRegistry {
     )
 
     fun byId(id: String): AnimeSource = sources.firstOrNull { it.id == id } ?: sources.first()
+
+    /**
+     * A source-scoped search fallback. This intentionally opens search results instead of
+     * inventing an episode URL when that provider has no verified adapter yet.
+     */
+    fun searchUrl(id: String, animeTitle: String, episodeTitle: String? = null): String {
+        val source = byId(id)
+        val host = android.net.Uri.parse(source.homeUrl).host.orEmpty()
+        val terms = listOfNotNull(animeTitle.takeIf { it.isNotBlank() }, episodeTitle?.takeIf { it.isNotBlank() })
+            .joinToString(" ")
+        val query = "site:$host $terms anime episode"
+        return android.net.Uri.parse("https://www.google.com/search")
+            .buildUpon()
+            .appendQueryParameter("q", query)
+            .build()
+            .toString()
+    }
 }
