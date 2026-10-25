@@ -25,11 +25,13 @@ Upstream references:
 - https://github.com/aniyomiorg/aniyomi-extensions
 - https://extension-docs.aniyomi.org/
 
-## First runtime code milestone: package preflight
+## Runtime safety milestone: preflight and explicit trust
 
 Added `com.animewave.app.aniyomi.AniyomiExtensionInspector` to inspect installed packages that declare the official anime-extension feature. It reports extension name, package/version, extension-lib version, declared source entry points, and SHA-256 signer fingerprints. It rejects candidates with missing version metadata, missing signatures, unsupported library versions, or missing entry points before any class loading is attempted. The Android manifest declares package visibility for this sideloaded Android TV use case.
 
-**This is discovery/preflight, not extension execution.** A candidate marked `REQUIRES_TRUST_AND_HOST` is not loaded. The trust store and exact runtime ABI must be present before loading. In particular, the pinned Aniyomi v0.18.2.1 host supports extension-lib v17, but a metadata inspector alone cannot implement that ABI.
+Added `AniyomiExtensionTrustStore`, which persists explicit user approval pinned to the package name and sorted signer fingerprint set. A package update signed by a different key does not inherit approval. Trust can only be recorded for candidates that pass metadata preflight, and the API requires an explicit `userConfirmed = true` signal from a future confirmation UI. Unit tests cover the compatibility classification branches.
+
+**This is still discovery/preflight and trust persistence, not extension execution.** A candidate marked `REQUIRES_TRUST_AND_HOST` is not loaded by AnimeWave yet. The trust store and exact runtime ABI must be connected to the real host loader before loading. Upstream v0.18.2.1 adds extension-lib v17 support, but the extension stubs alone are not a host implementation. See [official release notes](https://aniyomi.org/changelogs/) and [extension API docs](https://extension-docs.aniyomi.org/).
 
 ## Upstream loader audit (v0.18.2.1)
 
