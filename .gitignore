@@ -5,3 +5,4 @@ build/
 app/build/
 *.jks
 *.keystore
+app/src/test/snapshots/

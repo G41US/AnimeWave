@@ -9,7 +9,7 @@ class ParsingTest {
     private val page = """
         {"data":{"r":{"media":[{
           "id":1,"title":{"romaji":"Kimi no Sora","english":null},
-          "coverImage":{"large":"https://img/c.jpg","color":"#e4a15d"},"bannerImage":null,
+          "coverImage":{"large":"https://img/c.jpg","extraLarge":"https://img/xl.jpg","color":"#e4a15d"},"bannerImage":null,
           "genres":["Action","Drama"],"seasonYear":2024,"episodes":12,"format":"TV","averageScore":81,
           "description":"Hi<br><br><br>there <i>friend</i>",
           "externalLinks":[
@@ -26,6 +26,7 @@ class ParsingTest {
         assertEquals("Kimi no Sora", a.title) // falls back to romaji when english is null
         assertEquals(0xFFE4A15D, a.accent)
         assertNull(a.banner)
+        assertEquals("https://img/xl.jpg", a.coverXL)
         assertEquals("Hi\n\nthere friend", a.synopsis)
         assertEquals(listOf("Crunchyroll" to "https://cr/show", "Hulu" to "https://hulu/show"), a.watchLinks) // streaming only, http upgraded
         assertEquals(listOf(Episode("Episode 1", null, "https://cr/e1", "Crunchyroll")), a.streamingEpisodes)
