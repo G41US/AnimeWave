@@ -110,10 +110,19 @@ private fun <T> load(vararg keys: Any?, block: suspend () -> T): Loaded<T> {
 private fun toast(context: Context, msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
 private fun openLink(context: Context, url: String) {
+    val uri = runCatching { Uri.parse(url) }.getOrNull()
+    if (uri == null || uri.scheme != "https" || uri.host.isNullOrBlank()) {
+        toast(context, "This link cannot be opened in AnimeWave.")
+        return
+    }
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        context.startActivity(
+            Intent(context, EmbeddedPlayerActivity::class.java)
+                .putExtra(EmbeddedPlayerActivity.EXTRA_URL, url)
+                .putExtra(EmbeddedPlayerActivity.EXTRA_TITLE, "ANIMEWAVE PLAYER")
+        )
     } catch (e: ActivityNotFoundException) {
-        toast(context, "No app on this device can open that link.")
+        toast(context, "AnimeWave could not open this source.")
     }
 }
 
