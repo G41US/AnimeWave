@@ -28,8 +28,8 @@ data class SourceEpisode(
 )
 
 sealed interface EpisodePlayback {
-    /** Open the episode page in AnimeWave's embedded WebView. */
-    data class EmbeddedPage(val url: String) : EpisodePlayback
+    /** Open the episode page in the device's external browser. */
+    data class ExternalPage(val url: String) : EpisodePlayback
 
     /** Native Media3 is allowed only for verified, permitted direct media URLs. */
     data class DirectMedia(val url: String, val mimeType: String? = null) : EpisodePlayback
