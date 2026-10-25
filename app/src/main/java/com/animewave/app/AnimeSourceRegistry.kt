@@ -23,7 +23,8 @@ object AnimeSourceRegistry {
         AnimeSource("animeheaven", "AnimeHeaven", "https://animeheaven.me/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("reanime", "ReAnime", "https://reanime.app/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("anidb", "AniDB", "https://anidb.net/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animepahe", "AnimePahe", "https://animepahe.ru/", AnimeSource.Kind.EXTERNAL_SITE),
+        // The previous .ru URL redirects to a parked domain in current checks.
+        AnimeSource("animepahe", "AnimePahe", "https://animepahe.ng/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("anikoto", "AniKoto", "https://anikoto.to/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("animenexus", "AnimeNexus", "https://animenexus.com/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("miruro", "Miruro", "https://miruro.tv/", AnimeSource.Kind.EXTERNAL_SITE),
