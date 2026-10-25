@@ -45,15 +45,13 @@ class AniyomiExtensionInspector(context: Context) {
             ?.toDouble()
             ?: versionName.substringBeforeLast('.').toDoubleOrNull()
         val signatures = signingCertificates(info)
-        val supported = libVersion != null && libVersion in SUPPORTED_LIB_VERSIONS
         val hasEntryPoint = !metadata?.getString(META_SOURCE_CLASS).isNullOrBlank()
-        val status = when {
-            versionName.isBlank() -> CompatibilityStatus.MISSING_VERSION
-            signatures.isEmpty() -> CompatibilityStatus.UNSIGNED
-            !supported -> CompatibilityStatus.UNSUPPORTED_API
-            !hasEntryPoint -> CompatibilityStatus.MISSING_ENTRY_POINT
-            else -> CompatibilityStatus.REQUIRES_TRUST_AND_HOST
-        }
+        val status = classifyCompatibility(
+            versionName = versionName,
+            extensionLibVersion = libVersion,
+            hasSigner = signatures.isNotEmpty(),
+            hasEntryPoint = hasEntryPoint,
+        )
 
         return ExtensionCandidate(
             packageName = info.packageName,
