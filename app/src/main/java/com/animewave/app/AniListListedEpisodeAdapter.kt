@@ -35,7 +35,7 @@ class AniListListedEpisodeAdapter : AnimeSourceAdapter {
     override suspend fun getSeasons(match: SourceAnimeMatch): List<AnimeSeason> {
         val id = Regex("""/anime/(\d+)""").find(match.pageUrl)?.groupValues?.getOrNull(1)?.toIntOrNull()
             ?: return emptyList()
-        val anime = AniList.byIds(listOf(id)).values.flatten().firstOrNull() ?: return emptyList()
+        val anime = AniList.byIds(listOf(id)).firstOrNull() ?: return emptyList()
         if (anime.streamingEpisodes.isEmpty()) return emptyList()
 
         val sourceEpisodes = anime.streamingEpisodes.mapIndexed { index, episode ->
