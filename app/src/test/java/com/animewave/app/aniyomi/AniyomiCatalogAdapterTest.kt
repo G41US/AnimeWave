@@ -71,12 +71,8 @@ class AniyomiCatalogAdapterTest {
     }
     @Test
     fun streamUrlValidationRejectsCredentialsAndNonNetworkSchemes() {
-        val validate = AniyomiCatalogAdapter::class.java
-            .getDeclaredMethod("isHttpUrl", String::class.java)
-            .apply { isAccessible = true }
-
-        fun isAccepted(url: String): Boolean =
-            validate.invoke(adapterForValidation(), url) as Boolean
+        val adapter = adapterForValidation()
+        fun isAccepted(url: String): Boolean = adapter.isHttpUrl(url)
 
         assertTrue(isAccepted("https://cdn.example/video.m3u8"))
         assertTrue(isAccepted("HTTP://cdn.example/video.mp4"))
