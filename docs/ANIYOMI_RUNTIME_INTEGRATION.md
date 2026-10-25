@@ -94,3 +94,21 @@ A useful independent reference implementation is [Watchbox-Android](https://gith
 ## Resolver contract
 
 Implement `AnimeStreamResolver.resolve(episodeId)` with the pinned host runtime. Keep upstream API types inside the adapter; the UI/player should depend only on `ResolvedAnimeStream`.
+
+## Execution checklist and acceptance criteria
+
+This checklist is intentionally not marked complete until there is a real host-backed integration:
+
+- [ ] Vendor the upstream `v0.18.2.1` source API and its required host modules, retaining upstream license notices.
+- [ ] Make the vendored modules compile under the repository's pinned Android Gradle Plugin/Kotlin versions; record any minimal, reviewable compatibility patches.
+- [ ] Add a fixture extension APK built against that exact source API and assert the host loader discovers and instantiates its source/factory entry point.
+- [ ] Implement signer verification and an explicit trust confirmation flow before class instantiation; reject unsupported API versions and invalid package/signature combinations.
+- [ ] Register instantiated source objects with a source manager and expose installed sources in the AnimeWave UI.
+- [ ] Implement search and episode listing using the upstream source API; do not infer season membership where the API supplies no stable season relation.
+- [ ] Resolve video candidates with the upstream extractor, preserving request headers, then pass only validated HTTP(S) media URLs to the existing Media3 bridge.
+- [ ] Verify fixture search → episode → stream resolution → Media3 preparation in instrumentation or device tests, including HLS/DASH, redirects, failures, cancellation, and TV navigation.
+- [ ] Run unit tests and minified release build; attach the APK and test evidence to the PR.
+
+### Current limitation
+
+The current editing environment exposes repository file/commit operations but not a checkout/build shell capable of safely importing and compiling the upstream multi-module project. No guessed Gradle dependency or partial fake loader should be committed to disguise that limitation. A real runtime requires a full source tree import and build/test feedback; the checklist above is the acceptance gate, not a claim that those tasks have passed.
