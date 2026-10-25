@@ -104,13 +104,7 @@ class EmbeddedPlayerActivity : Activity() {
             }
 
             override fun onHideCustomView() {
-                val view = customView ?: return
-                root.removeView(view)
-                root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
-                top.visibility = View.VISIBLE
-                customView = null
-                customViewCallback?.onCustomViewHidden()
-                customViewCallback = null
+                hideFullscreenView(root, top)
             }
         }
         root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -126,9 +120,21 @@ class EmbeddedPlayerActivity : Activity() {
         back.requestFocus()
     }
 
+    private fun hideFullscreenView(root: LinearLayout, top: View) {
+        val view = customView ?: return
+        root.removeView(view)
+        root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
+        top.visibility = View.VISIBLE
+        customView = null
+        customViewCallback?.onCustomViewHidden()
+        customViewCallback = null
+    }
+
     override fun onBackPressed() {
         if (customView != null) {
-            webView.webChromeClient?.onHideCustomView()
+            val root = webView.parent as? LinearLayout
+            val top = root?.getChildAt(0)
+            if (root != null && top != null) hideFullscreenView(root, top)
         } else if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
         } else {
