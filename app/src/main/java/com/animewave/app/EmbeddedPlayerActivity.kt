@@ -25,6 +25,8 @@ import android.widget.LinearLayout
 class EmbeddedPlayerActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var status: TextView
+    private lateinit var rootLayout: LinearLayout
+    private lateinit var topBar: LinearLayout
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
 
@@ -56,6 +58,8 @@ class EmbeddedPlayerActivity : Activity() {
             isFocusable = true
             setOnClickListener { finish() }
         }
+        rootLayout = root
+        topBar = top
         status = TextView(this).apply {
             text = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "ANIMEWAVE PLAYER" }
             textSize = 15f
@@ -132,9 +136,7 @@ class EmbeddedPlayerActivity : Activity() {
 
     override fun onBackPressed() {
         if (customView != null) {
-            val root = webView.parent as? LinearLayout
-            val top = root?.getChildAt(0)
-            if (root != null && top != null) hideFullscreenView(root, top)
+            hideFullscreenView(rootLayout, topBar)
         } else if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
         } else {
