@@ -19,7 +19,8 @@ class ConsumetStreamResolver(
         if (episodeId.isBlank() || episodeId.contains("://")) {
             throw IOException("Expected a Consumet episode ID")
         }
-        val url = client.getPlayableUrl(episodeId)
+        val stream = client.getPlayableStream(episodeId)
+        val url = stream.url
         val uri = Uri.parse(url)
         if (!uri.scheme.equals("https", ignoreCase = true) || uri.host.isNullOrBlank()) {
             throw IOException("The source did not return a valid HTTPS stream")
@@ -28,6 +29,7 @@ class ConsumetStreamResolver(
         val format = path.substringAfterLast('.', "").lowercase()
         return ResolvedAnimeStream(
             url = url,
+            headers = stream.headers,
             mimeType = Media3StreamBridge.mimeTypeFor(format),
             title = episodeId,
         )
