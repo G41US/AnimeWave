@@ -116,13 +116,9 @@ private fun openLink(context: Context, url: String) {
         return
     }
     try {
-        context.startActivity(
-            Intent(context, EmbeddedPlayerActivity::class.java)
-                .putExtra(EmbeddedPlayerActivity.EXTRA_URL, url)
-                .putExtra(EmbeddedPlayerActivity.EXTRA_TITLE, "ANIMEWAVE PLAYER")
-        )
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     } catch (e: ActivityNotFoundException) {
-        toast(context, "AnimeWave could not open this source.")
+        toast(context, "No browser is available to open this source.")
     }
 }
 
