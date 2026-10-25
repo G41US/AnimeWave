@@ -37,7 +37,10 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 
 fun displayName(context: Context, uri: Uri): String =
@@ -65,17 +68,31 @@ fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
 /** Fullscreen player. Next/previous move through [items]; the CC button picks subtitle tracks. */
 @OptIn(UnstableApi::class)
 @Composable
-fun PlayerScreen(items: List<MediaItem>, startIndex: Int, onExit: () -> Unit) {
+fun PlayerScreen(
+    items: List<MediaItem>,
+    startIndex: Int,
+    requestHeaders: Map<String, String> = emptyMap(),
+    onExit: () -> Unit,
+) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var error by remember { mutableStateOf<String?>(null) }
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItems(items, startIndex, 0)
-            prepare()
-            playWhenReady = true
-        }
+    val player = remember(items, startIndex, requestHeaders) {
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setDefaultRequestProperties(requestHeaders)
+        val mediaSourceFactory = DefaultMediaSourceFactory(
+            DefaultDataSource.Factory(context, httpFactory)
+        )
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build()
+            .apply {
+                setMediaItems(items, startIndex, 0)
+                prepare()
+                playWhenReady = true
+            }
     }
     BackHandler(onBack = onExit)
 
