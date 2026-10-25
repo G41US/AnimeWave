@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # publish the APK to the "latest" release
 
 jobs:
   build:
@@ -44,3 +44,16 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Stable direct link for Downloader / browsers:
+      # https://github.com/<repo>/releases/download/latest/AnimeWave.apk
+      - name: Publish APK to the "latest" release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk AnimeWave.apk
+          gh release view latest >/dev/null 2>&1 || gh release create latest \
+            --title "AnimeWave (latest build)" --target "$GITHUB_SHA" \
+            --notes "Debug APK from the newest commit on main. Direct link: https://github.com/${{ github.repository }}/releases/download/latest/AnimeWave.apk"
+          gh release upload latest AnimeWave.apk --clobber
