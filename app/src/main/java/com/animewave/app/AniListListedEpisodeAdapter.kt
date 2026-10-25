@@ -48,7 +48,7 @@ class AniListListedEpisodeAdapter : AnimeSourceAdapter {
                 sourceId = sourceId,
                 sourceName = episode.site.ifBlank { displayName },
                 pageUrl = episode.url,
-                playback = EpisodePlayback.EmbeddedPage(episode.url),
+                playback = EpisodePlayback.ExternalPage(episode.url),
             )
         }
 
