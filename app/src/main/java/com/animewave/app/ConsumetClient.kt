@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit
  * Optional adapter for a user-configured, self-hosted Consumet-compatible API.
  * No public third-party instance is assumed or hard-coded.
  */
+data class ConsumetPlayableStream(val url: String, val headers: Map<String, String> = emptyMap())
+
 class ConsumetClient(
     baseUrl: String,
     private val http: OkHttpClient = OkHttpClient.Builder()
@@ -76,17 +78,32 @@ class ConsumetClient(
         )
     }
 
-    /** Returns the first direct HTTPS stream the API explicitly supplies for an episode. */
-    suspend fun getPlayableUrl(episodeId: String): String {
+    /** Returns a direct HTTPS stream and any request headers explicitly supplied by the API. */
+    suspend fun getPlayableStream(episodeId: String): ConsumetPlayableStream {
         val json = getJson("/anime/gogoanime/watch/${Uri.encode(episodeId)}")
         val sources = json.optJSONArray("sources") ?: throw IOException("API returned no stream sources")
+        val responseHeaders = parseHeaders(json.optJSONObject("headers"))
         for (i in 0 until sources.length()) {
             val source = sources.optJSONObject(i) ?: continue
             val url = source.optString("url")
             val uri = runCatching { Uri.parse(url) }.getOrNull()
-            if (uri?.scheme == "https" && !uri.host.isNullOrBlank()) return url
+            if (uri?.scheme.equals("https", ignoreCase = true) && !uri?.host.isNullOrBlank()) {
+                val sourceHeaders = parseHeaders(source.optJSONObject("headers"))
+                return ConsumetPlayableStream(url, responseHeaders + sourceHeaders)
+            }
         }
         throw IOException("No direct HTTPS stream was returned for this episode")
+    }
+
+    /** Backwards-compatible URL-only accessor. */
+    suspend fun getPlayableUrl(episodeId: String): String = getPlayableStream(episodeId).url
+
+    private fun parseHeaders(json: JSONObject?): Map<String, String> {
+        if (json == null) return emptyMap()
+        return json.keys().asSequence().mapNotNull { key ->
+            val value = json.optString(key).takeIf { it.isNotBlank() && it != "null" }
+            value?.let { key to it }
+        }.toMap()
     }
 
     private suspend fun getJson(path: String): JSONObject = withContext(Dispatchers.IO) {
