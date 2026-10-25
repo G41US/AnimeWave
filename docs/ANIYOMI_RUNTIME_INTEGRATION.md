@@ -25,6 +25,14 @@ Upstream references:
 - https://github.com/aniyomiorg/aniyomi-extensions
 - https://extension-docs.aniyomi.org/
 
+## Runtime integration spike (in progress)
+
+The repository currently does not contain the upstream host modules or a compatible extension ABI. Do not add guessed Maven coordinates or point the build at a moving upstream branch. The first implementation milestone is to pin and vendor the exact upstream host sources and build configuration, then validate the extension ABI in both debug and minified release builds.
+
+Before enabling extension installation, add a compatibility gate that checks package identity, extension API version, signatures/trust policy, and required host classes. Only user-selected, explicitly trusted extension packages should be loaded. Extension execution is third-party code and must be treated accordingly.
+
+A useful independent reference implementation is [Watchbox-Android](https://github.com/Nicartjay/Watchbox-Android), which documents ABI compatibility, shrinker keep rules, and version constraints. It is not an upstream Aniyomi dependency and must not be copied blindly; use it as a checklist for risks to verify against the pinned v0.18.2.1 source.
+
 ## Next steps for Aniyomi compatibility
 
 1. Vendor or include the required host modules from the pinned revision as Gradle subprojects. Resolve their transitive dependencies and Android namespace/build plugin requirements instead of inventing Maven coordinates.
