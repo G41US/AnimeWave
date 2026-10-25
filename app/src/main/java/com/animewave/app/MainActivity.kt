@@ -272,9 +272,11 @@ fun AnimeWaveApp() {
                                 // exact page; never substitute the selected provider's homepage.
                                 if (preferredSource != "listed") {
                                     val source = AnimeSourceRegistry.byId(preferredSource)
-                                    toast(context, "Opening the listed episode link. ${source.displayName} episode search is not connected yet.")
+                                    toast(context, "Searching ${source.displayName} for ${anime.title} — ${ep.title}. Results are not verified until you open a matching episode.")
+                                    openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
+                                } else {
+                                    openLink(context, ep.url)
                                 }
-                                openLink(context, ep.url)
                             }
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
