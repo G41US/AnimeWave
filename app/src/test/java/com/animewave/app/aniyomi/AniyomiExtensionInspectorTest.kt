@@ -57,6 +57,14 @@ class AniyomiExtensionInspectorTest {
     }
 
     @Test
+    fun sourceFactoryMetadataIsParsedAlongsideSourceClasses() {
+        assertEquals(
+            listOf("example.FactoryOne", "example.FactoryTwo"),
+            " example.FactoryOne ; ;example.FactoryTwo; ".parseClassNames(),
+        )
+    }
+
+    @Test
     fun compatibleMetadataStillRequiresHostAndExplicitTrust() {
         assertEquals(
             CompatibilityStatus.REQUIRES_TRUST_AND_HOST,
