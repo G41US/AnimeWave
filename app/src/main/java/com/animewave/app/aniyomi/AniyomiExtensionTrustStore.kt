@@ -43,7 +43,10 @@ class AniyomiExtensionTrustStore(context: Context) {
     }
 
     private fun ExtensionCandidate.primarySigner(): String? =
-        signerSha256.singleOrNull()?.takeIf(String::isNotBlank)
+        signerSha256.takeIf { it.isNotEmpty() && it.all(String::isNotBlank) }
+            ?.distinct()
+            ?.sorted()
+            ?.joinToString("|")
 
     private fun trustKey(packageName: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
