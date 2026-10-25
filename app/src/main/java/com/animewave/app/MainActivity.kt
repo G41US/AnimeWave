@@ -246,11 +246,15 @@ fun AnimeWaveApp() {
             anime != null -> {
                 BackHandler { selected = null }
                 LaunchedEffect(anime.id) { if (isTv) runCatching { detailFocus.requestFocus() } }
+                val catalog = load(anime.id) {
+                    EpisodeCatalogRepository(listOf(AniListListedEpisodeAdapter())).load(anime.title)
+                }
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())) {
                     DetailContent(
                         anime, saved = anime.id in saved, watchFocus = detailFocus,
                         onBack = { selected = null }, onWatch = ::watch, onOpen = { openLink(context, it) },
                         selectedSourceId = preferredSource,
+                        catalogState = catalog.value,
                         onSourceSelected = { sourceId ->
                             preferredSource = sourceId
                             prefs.edit().putString("preferredSource", sourceId).apply()
