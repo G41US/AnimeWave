@@ -169,6 +169,7 @@ fun AnimeWaveApp() {
     var selected by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<LocalEpisode<Uri>>>(emptyList()) }
     var playing by remember { mutableStateOf<Pair<List<MediaItem>, Int>?>(null) }
+    var playbackHeaders by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var askLink by remember { mutableStateOf(false) }
     var showIntro by rememberSaveable { mutableStateOf(true) }
     val scroll = rememberScrollState()
@@ -239,7 +240,7 @@ fun AnimeWaveApp() {
         val nowPlaying = playing
         val anime = selected
         when {
-            nowPlaying != null -> PlayerScreen(nowPlaying.first, nowPlaying.second) { playing = null }
+            nowPlaying != null -> PlayerScreen(nowPlaying.first, nowPlaying.second, playbackHeaders) { playing = null; playbackHeaders = emptyMap() }
             anime != null -> {
                 BackHandler { selected = null }
                 LaunchedEffect(anime.id) { if (isTv) runCatching { detailFocus.requestFocus() } }
@@ -270,6 +271,7 @@ fun AnimeWaveApp() {
                                     .setUri(stream.url)
                                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
                                     .build()
+                                playbackHeaders = emptyMap()
                                 playing = listOf(item) to 0
                             } else if (ep.sourceId == "consumet" && consumetBaseUrl.isNotBlank()) {
                                 scope.launch {
@@ -286,6 +288,7 @@ fun AnimeWaveApp() {
                                                     .build()
                                             )
                                             .build()
+                                        playbackHeaders = resolved.headers
                                         playing = listOf(item) to 0
                                     } catch (error: CancellationException) {
                                         throw error
@@ -366,7 +369,7 @@ fun AnimeWaveApp() {
                                 }
                             },
                             onLink = { askLink = true },
-                            onPlay = { i -> playing = episodes.map { it.toMediaItem() } to i },
+                            onPlay = { i -> playbackHeaders = emptyMap(); playing = episodes.map { it.toMediaItem() } to i },
                         )
                     }
                 }
@@ -374,6 +377,7 @@ fun AnimeWaveApp() {
         }
         if (askLink) LinkDialog(onDismiss = { askLink = false }) { url ->
             askLink = false
+            playbackHeaders = emptyMap()
             playing = listOf(MediaItem.fromUri(url)) to 0
         }
         // Title screen on top while the catalog loads underneath.
