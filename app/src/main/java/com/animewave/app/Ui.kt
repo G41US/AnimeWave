@@ -641,6 +641,7 @@ fun DetailContent(
             PrimaryButton(official?.let { "Watch on ${it.first}" } ?: "Watch", Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onWatch(official?.second) }
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
+            GhostButton("AnimePahe", Icons.Filled.PlayArrow) { onOpen("https://animepahe.ng/") }
         }
     }
     val poster: @Composable (Dp) -> Unit = { w ->
