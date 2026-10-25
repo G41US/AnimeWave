@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Finds media URLs that a page explicitly publishes in its HTML (video/source tags and
  * direct media links). It does not execute scripts, defeat access controls, or infer hidden
- * CDN URLs. For dynamic players, open the page in EmbeddedPlayerActivity instead.
+ * CDN URLs. Dynamic players are not supported by the native HTML parser; open source links in the device's external browser.
  */
 class NativeScraper(
     private val client: OkHttpClient = OkHttpClient.Builder()
