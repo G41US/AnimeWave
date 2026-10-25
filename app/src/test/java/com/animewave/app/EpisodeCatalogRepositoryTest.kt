@@ -40,7 +40,7 @@ class EpisodeCatalogRepositoryTest {
         sourceId = sourceId,
         sourceName = sourceName,
         pageUrl = "https://example.org/$sourceId/$number",
-        playback = EpisodePlayback.EmbeddedPage("https://example.org/$sourceId/$number"),
+        playback = EpisodePlayback.Unavailable("No stream in repository test"),
     )
 
     private class FakeAdapter(
