@@ -274,13 +274,21 @@ fun AnimeWaveApp() {
                             } else if (ep.sourceId == "consumet" && consumetBaseUrl.isNotBlank()) {
                                 scope.launch {
                                     try {
-                                        val episodeId = ep.id.removePrefix("consumet:")
-                                        val streamUrl = ConsumetClient(consumetBaseUrl).getPlayableUrl(episodeId)
+                                        val resolved = com.animewave.app.playback.ConsumetStreamResolver(
+                                            ConsumetClient(consumetBaseUrl)
+                                        ).resolve(ep.id)
                                         val item = MediaItem.Builder()
-                                            .setUri(streamUrl)
-                                            .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
+                                            .setUri(resolved.url)
+                                            .setMimeType(resolved.mimeType)
+                                            .setMediaMetadata(
+                                                androidx.media3.common.MediaMetadata.Builder()
+                                                    .setTitle("${anime.title} — ${ep.title}")
+                                                    .build()
+                                            )
                                             .build()
                                         playing = listOf(item) to 0
+                                    } catch (error: CancellationException) {
+                                        throw error
                                     } catch (error: Exception) {
                                         toast(context, "Couldn't load this episode: ${error.message ?: "API error"}")
                                     }
