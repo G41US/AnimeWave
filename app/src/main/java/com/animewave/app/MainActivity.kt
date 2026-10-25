@@ -178,6 +178,7 @@ fun AnimeWaveApp() {
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
     var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "listed") }
+    var consumetBaseUrl by remember { mutableStateOf(prefs.getString("consumetBaseUrl", "") ?: "") }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
@@ -242,8 +243,15 @@ fun AnimeWaveApp() {
             anime != null -> {
                 BackHandler { selected = null }
                 LaunchedEffect(anime.id) { if (isTv) runCatching { detailFocus.requestFocus() } }
-                val catalog = load(anime.id) {
-                    EpisodeCatalogRepository(listOf(AniListListedEpisodeAdapter())).load(anime.title)
+                val catalog = load(anime.id, consumetBaseUrl) {
+                    val adapters = buildList<AnimeSourceAdapter> {
+                        add(AniListListedEpisodeAdapter())
+                        if (consumetBaseUrl.isNotBlank()) {
+                            runCatching { add(ConsumetClient(consumetBaseUrl)) }
+                                .onFailure { throw IllegalArgumentException(it.message ?: "Invalid episode API URL") }
+                        }
+                    }
+                    EpisodeCatalogRepository(adapters).load(anime.title)
                 }
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())) {
                     DetailContent(
@@ -263,16 +271,22 @@ fun AnimeWaveApp() {
                                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
                                     .build()
                                 playing = listOf(item) to 0
-                            } else {
-                                // The card represents a real AniList-listed episode page. Open that
-                                // exact page; never substitute the selected provider's homepage.
-                                if (preferredSource != "listed") {
-                                    val source = AnimeSourceRegistry.byId(preferredSource)
-                                    toast(context, "Searching ${source.displayName} for ${anime.title} — ${ep.title}. Results are not verified until you open a matching episode.")
-                                    openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
-                                } else {
-                                    openLink(context, ep.url)
+                            } else if (ep.sourceId == "consumet" && consumetBaseUrl.isNotBlank()) {
+                                scope.launch {
+                                    try {
+                                        val episodeId = ep.id.removePrefix("consumet:")
+                                        val streamUrl = ConsumetClient(consumetBaseUrl).getPlayableUrl(episodeId)
+                                        val item = MediaItem.Builder()
+                                            .setUri(streamUrl)
+                                            .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
+                                            .build()
+                                        playing = listOf(item) to 0
+                                    } catch (error: Exception) {
+                                        toast(context, "Couldn't load this episode: ${error.message ?: "API error"}")
+                                    }
                                 }
+                            } else {
+                                openLink(context, ep.pageUrl)
                             }
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
@@ -324,6 +338,11 @@ fun AnimeWaveApp() {
                             onDownload = { downloadUpdate(it) },
                             onInstall = { apk ->
                                 if (!Updates.install(context, apk)) toast(context, "Allow AnimeWave to install apps, then tap Install update again.")
+                            },
+                            consumetBaseUrl = consumetBaseUrl,
+                            onConsumetBaseUrlChange = { value ->
+                                consumetBaseUrl = value
+                                prefs.edit().putString("consumetBaseUrl", value.trim()).apply()
                             },
                         )
                     }
