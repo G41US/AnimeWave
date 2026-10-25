@@ -7,6 +7,7 @@ import com.animewave.app.SourceEpisode
 import com.animewave.app.EpisodePlayback
 import com.animewave.app.playback.ResolvedAnimeStream
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Host-neutral boundary for the real Aniyomi v0.18.2.1 host implementation.
@@ -70,6 +71,7 @@ class AniyomiCatalogAdapter(
 ) : AnimeSourceAdapter {
     override val sourceId: String = source.id.toString()
     override val displayName: String = source.name
+    private val animeKeysByPageUrl = ConcurrentHashMap<String, String>()
 
     override suspend fun searchAnime(
         title: String,
@@ -83,6 +85,7 @@ class AniyomiCatalogAdapter(
 
         return queries.flatMap { query ->
             runtime.search(source.id, query).map { match ->
+                animeKeysByPageUrl[match.pageUrl] = match.key
                 SourceAnimeMatch(
                     sourceId = sourceId,
                     sourceName = displayName,
@@ -98,7 +101,8 @@ class AniyomiCatalogAdapter(
 
     override suspend fun getSeasons(match: SourceAnimeMatch): List<AnimeSeason> {
         require(match.sourceId == sourceId) { "Anime match belongs to a different source." }
-        val animeKey = match.pageUrl
+        val animeKey = animeKeysByPageUrl[match.pageUrl]
+            ?: throw IllegalArgumentException("Anime match was not produced by this source adapter.")
         val seasons = runtime.seasons(source.id, animeKey)
         val episodes = runtime.episodes(source.id, animeKey)
 
