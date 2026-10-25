@@ -612,6 +612,7 @@ fun DetailContent(
     onBack: () -> Unit, onWatch: (String?) -> Unit, onOpen: (String) -> Unit,
     onPlayEpisode: (Episode) -> Unit,
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
+    catalogState: EpisodeCatalogState? = null,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
@@ -729,21 +730,60 @@ fun DetailContent(
                     anime.watchLinks.drop(1).forEach { (site, url) -> Chip(site, false) { onOpen(url) } }
                 }
             }
-            SectionTitle("Episodes")
-            if (anime.streamingEpisodes.isEmpty()) {
-                Text("No episode links listed for this title yet.", color = Muted, modifier = Modifier.padding(horizontal = gutter))
-            } else {
-                // AniList's order; each opens the episode on the official site.
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    items(anime.streamingEpisodes) { ep ->
-                        EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
-                            onPlayEpisode(ep)
+            SectionTitle("Season & Episode Catalogue")
+            when (val catalogue = catalogState) {
+                null, EpisodeCatalogState.Loading -> {
+                    Text("Checking AniList-listed episode links…", color = Muted, modifier = Modifier.padding(horizontal = gutter))
+                    Spacer(Modifier.height(10.dp))
+                }
+                is EpisodeCatalogState.Failed -> {
+                    Text(catalogue.message, color = Muted, modifier = Modifier.padding(horizontal = gutter))
+                }
+                is EpisodeCatalogState.Ready -> {
+                    Text(
+                        "${catalogue.checkedSources} catalogue source checked · AniList metadata only",
+                        color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter)
+                    )
+                    if (catalogue.seasons.isEmpty()) {
+                        Text("No episode links were listed for this title. This does not mean the selected streaming sites lack episodes.", color = Muted, modifier = Modifier.padding(horizontal = gutter, vertical = 8.dp))
+                    } else {
+                        catalogue.seasons.forEach { season ->
+                            Text(
+                                listOfNotNull(season.title, season.year?.toString(), season.format).joinToString(" · "),
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                                modifier = Modifier.padding(start = gutter, end = gutter, top = 8.dp)
+                            )
+                            Text(
+                                "${season.episodes.size} AniList-listed links",
+                                color = Muted, fontSize = 12.sp,
+                                modifier = Modifier.padding(start = gutter, end = gutter, top = 2.dp)
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                items(season.episodes, key = { it.id }) { ep ->
+                                    val asEpisode = Episode(ep.title, ep.thumbnail, ep.pageUrl, ep.sourceName)
+                                    EpisodeCard(asEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
+                                        onPlayEpisode(asEpisode)
+                                    }
+                                }
+                            }
                         }
                     }
+                    if (catalogue.unavailableSources.isNotEmpty()) {
+                        Text(
+                            "Could not check: ${catalogue.unavailableSources.joinToString()}",
+                            color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 6.dp)
+                        )
+                    }
                 }
+            }
+            if (anime.streamingEpisodes.isNotEmpty()) {
+                Text(
+                    "These are AniList metadata links, not verified availability across your 12 selected streaming sites.",
+                    color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 4.dp)
+                )
             }
             if (wide && anime.synopsis.length > 280) {
                 SectionTitle("Story")
