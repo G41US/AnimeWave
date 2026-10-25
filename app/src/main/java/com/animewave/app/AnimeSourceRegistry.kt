@@ -16,19 +16,19 @@ data class AnimeSource(
 
 object AnimeSourceRegistry {
     val sources = listOf(
-        AnimeSource("listed", "Wave Source 1", "https://anilist.co", AnimeSource.Kind.LISTED_EPISODE),
-        AnimeSource("copon", "Wave Source 2", "https://copon.site/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anivault", "Wave Source 3", "https://anivault.lol/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anineko", "Wave Source 4", "https://anineko.com/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animeheaven", "Wave Source 5", "https://animeheaven.me/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("reanime", "Wave Source 6", "https://reanime.app/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anidb", "Wave Source 7", "https://anidb.net/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animepahe", "Wave Source 8", "https://animepahe.ru/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anikoto", "Wave Source 9", "https://anikoto.to/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animenexus", "Wave Source 10", "https://animenexus.com/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("miruro", "Wave Source 11", "https://miruro.tv/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("mkissa", "Wave Source 12", "https://mkissa.com/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anichi", "Wave Source 13", "https://anichi.to/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("listed", "AniList metadata", "https://anilist.co", AnimeSource.Kind.LISTED_EPISODE),
+        AnimeSource("copon", "Copon", "https://copon.site/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anivault", "AniVault", "https://anivault.lol/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anineko", "AniNeko", "https://anineko.com/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("animeheaven", "AnimeHeaven", "https://animeheaven.me/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("reanime", "ReAnime", "https://reanime.app/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anidb", "AniDB", "https://anidb.net/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("animepahe", "AnimePahe", "https://animepahe.ru/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anikoto", "AniKoto", "https://anikoto.to/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("animenexus", "AnimeNexus", "https://animenexus.com/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("miruro", "Miruro", "https://miruro.tv/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("mkissa", "MKissa", "https://mkissa.com/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anichi", "Anichi", "https://anichi.to/", AnimeSource.Kind.EXTERNAL_SITE),
     )
 
     fun byId(id: String): AnimeSource = sources.firstOrNull { it.id == id } ?: sources.first()
