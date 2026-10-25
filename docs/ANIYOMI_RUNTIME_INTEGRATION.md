@@ -25,6 +25,17 @@ Upstream references:
 - https://github.com/aniyomiorg/aniyomi-extensions
 - https://extension-docs.aniyomi.org/
 
+## Upstream loader audit (v0.18.2.1)
+
+The pinned upstream host's real loading path has now been traced to these files:
+
+- `app/src/main/java/eu/kanade/tachiyomi/extension/anime/AnimeExtensionManager.kt`: initializes installed extensions through `AnimeExtensionLoader.loadExtensions(context)`, separates successful and untrusted results, and only registers an untrusted extension after an explicit trust action.
+- `app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionLoader.kt`: responsible for package inspection, class loading, and constructing extension instances.
+- `app/src/main/java/eu/kanade/tachiyomi/source/anime/AndroidAnimeSourceManager.kt`: observes installed extensions and registers their sources with the source repository.
+- `source-api/src/commonMain/kotlin/eu/kanade/tachiyomi/animesource/AnimeSourceFactory.kt`: extension entry point; factories create the anime source instances.
+
+These are implementation entry points, not standalone drop-in classes: the manager depends on Injekt, preferences, extension trust persistence, package install receivers, source repositories, and other host services. The correct next milestone is to port the loader plus the minimum required host dependency graph and source registration lifecycle together, not to write a speculative class loader around the API stubs.
+
 ## Runtime integration spike (in progress)
 
 The repository currently does not contain the upstream host modules or a compatible extension ABI. Do not add guessed Maven coordinates or point the build at a moving upstream branch. The first implementation milestone is to pin and vendor the exact upstream host sources and build configuration, then validate the extension ABI in both debug and minified release builds.
