@@ -610,7 +610,7 @@ fun SearchBox(query: String, onChange: (String) -> Unit) {
 fun DetailContent(
     anime: Anime, saved: Boolean, watchFocus: FocusRequester,
     onBack: () -> Unit, onWatch: (String?) -> Unit, onOpen: (String) -> Unit,
-    onPlayEpisode: (Episode) -> Unit,
+    onPlayEpisode: (SourceEpisode) -> Unit,
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
     catalogState: EpisodeCatalogState? = null,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
@@ -751,7 +751,7 @@ fun DetailContent(
             SectionTitle("Season & Episode Catalogue")
             when (val catalogue = catalogState) {
                 null, EpisodeCatalogState.Loading -> {
-                    Text("Checking AniList-listed episode links…", color = Muted, modifier = Modifier.padding(horizontal = gutter))
+                    Text("Checking configured episode sources…", color = Muted, modifier = Modifier.padding(horizontal = gutter))
                     Spacer(Modifier.height(10.dp))
                 }
                 is EpisodeCatalogState.Failed -> {
@@ -759,7 +759,7 @@ fun DetailContent(
                 }
                 is EpisodeCatalogState.Ready -> {
                     Text(
-                        "${catalogue.checkedSources} catalogue source checked · AniList metadata only",
+                        "${catalogue.checkedSources} catalogue source(s) checked",
                         color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter)
                     )
                     if (catalogue.seasons.isEmpty()) {
@@ -772,7 +772,7 @@ fun DetailContent(
                                 modifier = Modifier.padding(start = gutter, end = gutter, top = 8.dp)
                             )
                             Text(
-                                "${season.episodes.size} AniList-listed links",
+                                "${season.episodes.size} episode links · ${season.episodes.firstOrNull()?.sourceName ?: "catalogue"}",
                                 color = Muted, fontSize = 12.sp,
                                 modifier = Modifier.padding(start = gutter, end = gutter, top = 2.dp)
                             )
@@ -783,7 +783,7 @@ fun DetailContent(
                                 items(season.episodes, key = { it.id }) { ep ->
                                     val asEpisode = Episode(ep.title, ep.thumbnail, ep.pageUrl, ep.sourceName)
                                     EpisodeCard(asEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
-                                        onPlayEpisode(asEpisode)
+                                        onPlayEpisode(ep)
                                     }
                                 }
                             }
