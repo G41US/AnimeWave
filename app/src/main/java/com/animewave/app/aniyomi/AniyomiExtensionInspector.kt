@@ -45,7 +45,9 @@ class AniyomiExtensionInspector(context: Context) {
             ?.toDouble()
             ?: versionName.substringBeforeLast('.').toDoubleOrNull()
         val signatures = signingCertificates(info)
-        val hasEntryPoint = !metadata?.getString(META_SOURCE_CLASS).isNullOrBlank()
+        val sourceClassNames = metadata?.getString(META_SOURCE_CLASS).parseClassNames()
+        val sourceFactoryClassNames = metadata?.getString(META_SOURCE_FACTORY).parseClassNames()
+        val hasEntryPoint = sourceClassNames.isNotEmpty() || sourceFactoryClassNames.isNotEmpty()
         val status = classifyCompatibility(
             versionName = versionName,
             extensionLibVersion = libVersion,
@@ -59,11 +61,8 @@ class AniyomiExtensionInspector(context: Context) {
             versionName = versionName,
             versionCode = PackageInfoCompat.getLongVersionCode(info),
             extensionLibVersion = libVersion,
-            sourceClassNames = metadata?.getString(META_SOURCE_CLASS)
-                ?.split(';')
-                ?.map(String::trim)
-                ?.filter(String::isNotBlank)
-                .orEmpty(),
+            sourceClassNames = sourceClassNames,
+            sourceFactoryClassNames = sourceFactoryClassNames,
             signerSha256 = signatures,
             status = status,
         )
@@ -103,6 +102,7 @@ class AniyomiExtensionInspector(context: Context) {
     companion object {
         const val EXTENSION_FEATURE = "tachiyomi.animeextension"
         const val META_SOURCE_CLASS = "tachiyomi.animeextension.class"
+        const val META_SOURCE_FACTORY = "tachiyomi.animeextension.factory"
         const val META_EXTENSION_LIB = "aniyomix.extensionLib"
         const val META_NAME = "aniyomix.name"
         val SUPPORTED_LIB_VERSIONS = setOf(14.0, 16.0, 17.0)
@@ -123,6 +123,9 @@ class AniyomiExtensionInspector(context: Context) {
     }
 }
 
+private fun String?.parseClassNames(): List<String> =
+    this.orEmpty().split(';').map(String::trim).filter(String::isNotBlank)
+
 data class ExtensionCandidate(
     val packageName: String,
     val name: String,
@@ -130,6 +133,7 @@ data class ExtensionCandidate(
     val versionCode: Long,
     val extensionLibVersion: Double?,
     val sourceClassNames: List<String>,
+    val sourceFactoryClassNames: List<String>,
     val signerSha256: List<String>,
     val status: CompatibilityStatus,
 )
