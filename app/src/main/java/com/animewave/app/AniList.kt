@@ -14,6 +14,8 @@ data class Anime(
     val id: Int,
     val title: String,
     val cover: String?,
+    /** Bigger cover for heroes and detail pages. */
+    val coverXL: String?,
     val banner: String?,
     val accent: Long?,
     val genres: List<String>,
@@ -29,7 +31,7 @@ data class Anime(
 
 /** Free public anime database, no API key: https://docs.anilist.co */
 object AniList {
-    private const val FIELDS = "id title{romaji english} coverImage{large color} bannerImage genres seasonYear " +
+    private const val FIELDS = "id title{romaji english} coverImage{large extraLarge color} bannerImage genres seasonYear " +
         "episodes format averageScore description(asHtml:false) externalLinks{site url type} " +
         "streamingEpisodes{title thumbnail url site}"
 
@@ -105,6 +107,7 @@ fun parseMedia(m: JSONObject): Anime {
         id = m.getInt("id"),
         title = title.str("english") ?: title.str("romaji") ?: "Untitled",
         cover = cover?.str("large"),
+        coverXL = cover?.str("extraLarge") ?: cover?.str("large"),
         banner = m.str("bannerImage"),
         accent = cover?.str("color")?.removePrefix("#")?.takeIf { it.length == 6 }?.toLongOrNull(16)?.or(0xFF000000),
         genres = if (genres == null) emptyList() else (0 until genres.length()).map { genres.getString(it) },
