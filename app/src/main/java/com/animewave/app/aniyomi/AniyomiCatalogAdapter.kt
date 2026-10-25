@@ -173,8 +173,15 @@ class AniyomiCatalogAdapter(
         return episode.key.startsWith("${season.key}#")
     }
 
-    private fun isHttpUrl(value: String): Boolean = runCatching {
-        val uri = URI(value)
-        (uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()
+    /**
+     * Match Media3StreamBridge's network URL policy here too, so invalid candidates are
+     * discarded before they cross the host-to-player boundary.
+     */
+    internal fun isHttpUrl(value: String): Boolean = runCatching {
+        val uri = URI(value.trim())
+        (uri.scheme.equals("https", ignoreCase = true) ||
+            uri.scheme.equals("http", ignoreCase = true)) &&
+            !uri.host.isNullOrBlank() &&
+            uri.rawUserInfo == null
     }.getOrDefault(false)
 }
