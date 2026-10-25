@@ -52,6 +52,23 @@ These are implementation entry points, not standalone drop-in classes: the manag
 
 ## Runtime integration spike (in progress)
 
+### First implementation gate: host ABI and dependency inventory
+
+The pinned loader has been inspected at [AnimeExtensionLoader.kt](https://github.com/aniyomiorg/aniyomi/blob/v0.18.2.1/app/src/main/java/eu/kanade/tachiyomi/extension/anime/util/AnimeExtensionLoader.kt). It does more than instantiate classes: it validates the extension-lib version and signing certificate, consults the host trust service, uses a child-first class loader with a fallback, and converts declared source classes/factories into host source instances. The resulting sources are then registered with the host source manager. This confirms that a class-loader-only implementation would be incomplete.
+
+The first code-integration gate is therefore **compile the pinned source API and its minimum host support graph inside AnimeWave** before wiring any APK execution. The current app's Gradle build has only `:app`; it does not yet include `:source-api`, `:core:common`, `:domain`, or `:data`. The upstream source API itself uses Kotlin Multiplatform and depends on Injekt, RxJava, Jsoup, NanoHTTPD, Android preferences, coroutines, and core utilities. Those modules and plugin conventions must be reconciled with AnimeWave's AGP 8.7.3/Kotlin 2.0.21 build rather than added as an unverified binary dependency.
+
+Implementation gates:
+1. Pin exact upstream source revision and preserve its Apache-2.0 license/attribution with vendored files.
+2. Port/build the minimum `:source-api` + host services as Gradle modules, resolving compiler/plugin and Android namespace conflicts.
+3. Add a fixture extension compiled against that exact API; assert its entry point can be loaded and cast to the host source interface.
+4. Only after that passes, port trust-aware extension loading and source registration; do not execute untrusted extension code.
+5. Connect real search/episode/video APIs to `AniyomiCatalogAdapter` and Media3, then verify a minified release build.
+
+No runtime code should be advertised as complete until gates 2–5 pass. CI's successful APK build currently validates AnimeWave itself, not extension ABI compatibility.
+
+## Runtime integration spike (in progress)
+
 The repository currently does not contain the upstream host modules or a compatible extension ABI. Do not add guessed Maven coordinates or point the build at a moving upstream branch. The first implementation milestone is to pin and vendor the exact upstream host sources and build configuration, then validate the extension ABI in both debug and minified release builds.
 
 Before enabling extension installation, add a compatibility gate that checks package identity, extension API version, signatures/trust policy, and required host classes. Only user-selected, explicitly trusted extension packages should be loaded. Extension execution is third-party code and must be treated accordingly.
