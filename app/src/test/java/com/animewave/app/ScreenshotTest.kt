@@ -92,7 +92,7 @@ class ScreenshotTest {
     @Test fun tvHomeRows() = paparazzi.snapshot { HomeShot(wide = true, scroll = 1300) }
     @Test fun tvDetail() = paparazzi.snapshot { DetailShot(wide = true) }
     @Test fun tvDiscover() = paparazzi.snapshot {
-        Frame(true, "Discover") { TopSpace(); ScreenTitle("Discover", "The most popular anime in every genre"); GenreChips("Action") {}; AnimeGrid(home().map { it.getValue("trending") }) {} }
+        Frame(true, "Discover") { ScreenTitle("Discover", "The most popular anime in every genre"); GenreChips("Action") {}; AnimeGrid(home().map { it.getValue("trending") }) {} }
     }
 
     @Test fun tvDetailEpisodes() = paparazzi.snapshot {
@@ -107,7 +107,7 @@ class ScreenshotTest {
 
     @Test fun tvSettings() = paparazzi.snapshot {
         Frame(true, "Settings") {
-            TopSpace(); ScreenTitle("Settings")
+            ScreenTitle("Settings")
             SettingsScreen("1.0.12", UpdateState.Downloading(UpdateInfo(14, "1.0.14", "Redesign UI"), .42f), {}, {}, {})
         }
     }
@@ -118,7 +118,7 @@ class ScreenshotTest {
             CompositionLocalProvider(LocalImageOverride provides images) {
                 AnimeWaveTheme(false) {
                     Shell("Settings", {}, remember { FocusRequester() }, remember { ScrollState(0) }, update = true) {
-                        TopSpace(); ScreenTitle("Settings")
+                        ScreenTitle("Settings")
                         SettingsScreen("1.0.12", UpdateState.Available(UpdateInfo(14, "1.0.14", "Redesign UI: cinematic hero, Top 10")), {}, {}, {})
                     }
                 }
