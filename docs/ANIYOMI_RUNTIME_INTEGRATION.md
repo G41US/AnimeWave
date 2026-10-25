@@ -25,6 +25,12 @@ Upstream references:
 - https://github.com/aniyomiorg/aniyomi-extensions
 - https://extension-docs.aniyomi.org/
 
+## Catalog and playback adapter boundary added
+
+Added `AniyomiHostRuntime` as the typed boundary for the actual host implementation, plus `AniyomiCatalogAdapter` to map host search results, season/episode records, and resolved video candidates into AnimeWave's existing catalog and `ResolvedAnimeStream` contracts. The adapter preserves request headers and rejects non-HTTP(S) stream URLs. Unit tests use a fake host to validate mapping, query de-duplication, and header forwarding.
+
+**The host implementation is still missing.** No production class currently implements `AniyomiHostRuntime`, so this adapter cannot load installed extension code by itself. This is an integration seam and testable mapping layer, not proof of real extension execution.
+
 ## Runtime safety milestone: preflight and explicit trust
 
 Added `com.animewave.app.aniyomi.AniyomiExtensionInspector` to inspect installed packages that declare the official anime-extension feature. It reports extension name, package/version, extension-lib version, declared source entry points, and SHA-256 signer fingerprints. It rejects candidates with missing version metadata, missing signatures, unsupported library versions, or missing entry points before any class loading is attempted. The Android manifest declares package visibility for this sideloaded Android TV use case.
