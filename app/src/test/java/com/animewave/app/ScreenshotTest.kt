@@ -83,7 +83,7 @@ class ScreenshotTest {
     private fun DetailShot(wide: Boolean) = AnimeWaveTheme(wide) {
         CompositionLocalProvider(LocalImageOverride provides images) {
             Column(Modifier.fillMaxSize().background(Ink)) {
-                DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, {})
+                DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, "listed", {}, {}, {})
             }
         }
     }
@@ -99,7 +99,7 @@ class ScreenshotTest {
         AnimeWaveTheme(true) {
             CompositionLocalProvider(LocalImageOverride provides images) {
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(remember { ScrollState(1000) })) {
-                    DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, {})
+                    DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, "listed", {}, {}, {})
                 }
             }
         }

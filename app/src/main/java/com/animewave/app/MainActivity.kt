@@ -110,10 +110,19 @@ private fun <T> load(vararg keys: Any?, block: suspend () -> T): Loaded<T> {
 private fun toast(context: Context, msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
 private fun openLink(context: Context, url: String) {
+    val uri = runCatching { Uri.parse(url) }.getOrNull()
+    if (uri == null || uri.scheme != "https" || uri.host.isNullOrBlank()) {
+        toast(context, "This link cannot be opened in AnimeWave.")
+        return
+    }
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        context.startActivity(
+            Intent(context, EmbeddedPlayerActivity::class.java)
+                .putExtra(EmbeddedPlayerActivity.EXTRA_URL, url)
+                .putExtra(EmbeddedPlayerActivity.EXTRA_TITLE, "ANIMEWAVE PLAYER")
+        )
     } catch (e: ActivityNotFoundException) {
-        toast(context, "No app on this device can open that link.")
+        toast(context, "AnimeWave could not open this source.")
     }
 }
 
@@ -172,6 +181,7 @@ fun AnimeWaveApp() {
     val detailFocus = remember { FocusRequester() }
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
+    var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "listed") }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
@@ -240,6 +250,27 @@ fun AnimeWaveApp() {
                     DetailContent(
                         anime, saved = anime.id in saved, watchFocus = detailFocus,
                         onBack = { selected = null }, onWatch = ::watch, onOpen = { openLink(context, it) },
+                        selectedSourceId = preferredSource,
+                        onSourceSelected = { sourceId ->
+                            preferredSource = sourceId
+                            prefs.edit().putString("preferredSource", sourceId).apply()
+                        },
+                        onPlayEpisode = { ep ->
+                            val stream = OfficialPlaybackRegistry.find(anime.id, ep.title)
+                            if (stream != null) {
+                                val item = MediaItem.Builder()
+                                    .setUri(stream.url)
+                                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
+                                    .build()
+                                playing = listOf(item) to 0
+                            } else if (preferredSource == "listed") {
+                                openLink(context, ep.url)
+                            } else {
+                                val source = AnimeSourceRegistry.byId(preferredSource)
+                                toast(context, "${source.displayName} is selected, but its in-app episode adapter is not connected yet.")
+                                openLink(context, source.homeUrl)
+                            }
+                        },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
                     )
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
