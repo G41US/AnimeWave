@@ -240,6 +240,18 @@ fun AnimeWaveApp() {
                     DetailContent(
                         anime, saved = anime.id in saved, watchFocus = detailFocus,
                         onBack = { selected = null }, onWatch = ::watch, onOpen = { openLink(context, it) },
+                        onPlayEpisode = { ep ->
+                            val stream = OfficialPlaybackRegistry.find(anime.id, ep.title)
+                            if (stream != null) {
+                                val item = MediaItem.Builder()
+                                    .setUri(stream.url)
+                                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
+                                    .build()
+                                playing = listOf(item) to 0
+                            } else {
+                                openLink(context, ep.url)
+                            }
+                        },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
                     )
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
