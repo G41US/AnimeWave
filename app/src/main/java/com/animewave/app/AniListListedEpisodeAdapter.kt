@@ -23,7 +23,7 @@ class AniListListedEpisodeAdapter : AnimeSourceAdapter {
                     sourceId = sourceId,
                     sourceName = displayName,
                     title = candidate,
-                    pageUrl = "https://anilist.co/anime/\${anime.id}",
+                    pageUrl = "https://anilist.co/anime/" + anime.id,
                     year = anime.year,
                     episodeCount = anime.episodes,
                     seasonLabel = anime.format,
