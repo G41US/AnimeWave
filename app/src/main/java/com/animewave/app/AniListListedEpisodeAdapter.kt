@@ -3,8 +3,7 @@ package com.animewave.app
 /**
  * Adapter for AniList's own curated streaming-episode links.
  *
- * This is intentionally not advertised as one of the twelve streaming providers: these
- * are metadata links supplied by AniList, and availability depends on what AniList lists.
+ * These are metadata links supplied by AniList, not one of the twelve streaming providers.
  */
 class AniListListedEpisodeAdapter : AnimeSourceAdapter {
     override val sourceId: String = "listed"
@@ -14,28 +13,27 @@ class AniListListedEpisodeAdapter : AnimeSourceAdapter {
         title: String,
         alternateTitles: List<String>,
     ): List<SourceAnimeMatch> {
-        return AniList.search(title)
-            .flatMap { anime ->
-                val candidates = listOfNotNull(anime.title)
-                if (candidates.none { it.equals(title, ignoreCase = true) } &&
-                    candidates.none { it.contains(title, ignoreCase = true) || title.contains(it, ignoreCase = true) }
-                ) emptyList()
-                else listOf(
-                    SourceAnimeMatch(
-                        sourceId = sourceId,
-                        sourceName = displayName,
-                        title = anime.title,
-                        pageUrl = "https://anilist.co/anime/${anime.id}",
-                        year = anime.year,
-                        episodeCount = anime.episodes,
-                        seasonLabel = anime.format,
-                    )
+        return AniList.search(title).mapNotNull { anime ->
+            val candidate = anime.title
+            if (candidate.equals(title, ignoreCase = true) ||
+                candidate.contains(title, ignoreCase = true) ||
+                title.contains(candidate, ignoreCase = true)
+            ) {
+                SourceAnimeMatch(
+                    sourceId = sourceId,
+                    sourceName = displayName,
+                    title = candidate,
+                    pageUrl = "https://anilist.co/anime/\${anime.id}",
+                    year = anime.year,
+                    episodeCount = anime.episodes,
+                    seasonLabel = anime.format,
                 )
-            }
+            } else null
+        }
     }
 
     override suspend fun getSeasons(match: SourceAnimeMatch): List<AnimeSeason> {
-        val id = Regex("""/anime/(\\d+)""").find(match.pageUrl)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        val id = Regex("""/anime/(\d+)""").find(match.pageUrl)?.groupValues?.getOrNull(1)?.toIntOrNull()
             ?: return emptyList()
         val anime = AniList.byIds(listOf(id)).values.flatten().firstOrNull() ?: return emptyList()
         if (anime.streamingEpisodes.isEmpty()) return emptyList()
@@ -44,7 +42,7 @@ class AniListListedEpisodeAdapter : AnimeSourceAdapter {
             SourceEpisode(
                 id = "anilist:$id:$index",
                 title = episode.title,
-                number = Regex("""(?:episode|ep\\.?|#)\\s*(\\d+)""", RegexOption.IGNORE_CASE)
+                number = Regex("""(?:episode|ep\.?|#)\s*(\d+)""", RegexOption.IGNORE_CASE)
                     .find(episode.title)?.groupValues?.getOrNull(1)?.toIntOrNull(),
                 thumbnail = episode.thumbnail,
                 sourceId = sourceId,
