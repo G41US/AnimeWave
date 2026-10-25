@@ -12,10 +12,6 @@
         android:usesCleartextTraffic="false"
         android:supportsRtl="true">
         <activity
-            android:name=".EmbeddedPlayerActivity"
-            android:exported="false"
-            android:screenOrientation="unspecified" />
-        <activity
             android:name=".MainActivity"
             android:theme="@style/Theme.AnimeWave.Starting"
             android:exported="true"
