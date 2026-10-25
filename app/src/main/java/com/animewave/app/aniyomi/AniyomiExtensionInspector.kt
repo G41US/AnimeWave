@@ -106,6 +106,20 @@ class AniyomiExtensionInspector(context: Context) {
         const val META_EXTENSION_LIB = "aniyomix.extensionLib"
         const val META_NAME = "aniyomix.name"
         val SUPPORTED_LIB_VERSIONS = setOf(14.0, 16.0, 17.0)
+
+        internal fun classifyCompatibility(
+            versionName: String,
+            extensionLibVersion: Double?,
+            hasSigner: Boolean,
+            hasEntryPoint: Boolean,
+        ): CompatibilityStatus = when {
+            versionName.isBlank() -> CompatibilityStatus.MISSING_VERSION
+            !hasSigner -> CompatibilityStatus.UNSIGNED
+            extensionLibVersion == null || extensionLibVersion !in SUPPORTED_LIB_VERSIONS ->
+                CompatibilityStatus.UNSUPPORTED_API
+            !hasEntryPoint -> CompatibilityStatus.MISSING_ENTRY_POINT
+            else -> CompatibilityStatus.REQUIRES_TRUST_AND_HOST
+        }
     }
 }
 
