@@ -17,6 +17,7 @@ data class AnimeSource(
 object AnimeSourceRegistry {
     val sources = listOf(
         AnimeSource("listed", "AniList metadata", "https://anilist.co", AnimeSource.Kind.LISTED_EPISODE),
+        AnimeSource("consumet", "Consumet API", "https://consumet.org/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("copon", "Copon", "https://copon.site/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("anivault", "AniVault", "https://anivault.lol/", AnimeSource.Kind.EXTERNAL_SITE),
         AnimeSource("anineko", "AniNeko", "https://anineko.com/", AnimeSource.Kind.EXTERNAL_SITE),
