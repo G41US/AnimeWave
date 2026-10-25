@@ -172,6 +172,7 @@ fun AnimeWaveApp() {
     val detailFocus = remember { FocusRequester() }
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
+    var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "listed") }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
@@ -240,6 +241,11 @@ fun AnimeWaveApp() {
                     DetailContent(
                         anime, saved = anime.id in saved, watchFocus = detailFocus,
                         onBack = { selected = null }, onWatch = ::watch, onOpen = { openLink(context, it) },
+                        selectedSourceId = preferredSource,
+                        onSourceSelected = { sourceId ->
+                            preferredSource = sourceId
+                            prefs.edit().putString("preferredSource", sourceId).apply()
+                        },
                         onPlayEpisode = { ep ->
                             val stream = OfficialPlaybackRegistry.find(anime.id, ep.title)
                             if (stream != null) {
@@ -248,8 +254,12 @@ fun AnimeWaveApp() {
                                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
                                     .build()
                                 playing = listOf(item) to 0
-                            } else {
+                            } else if (preferredSource == "listed") {
                                 openLink(context, ep.url)
+                            } else {
+                                val source = AnimeSourceRegistry.byId(preferredSource)
+                                toast(context, "${source.displayName} is selected, but its in-app episode adapter is not connected yet.")
+                                openLink(context, source.homeUrl)
                             }
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
