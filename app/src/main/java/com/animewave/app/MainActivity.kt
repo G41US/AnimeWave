@@ -267,12 +267,14 @@ fun AnimeWaveApp() {
                                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
                                     .build()
                                 playing = listOf(item) to 0
-                            } else if (preferredSource == "listed") {
-                                openLink(context, ep.url)
                             } else {
-                                val source = AnimeSourceRegistry.byId(preferredSource)
-                                toast(context, "${source.displayName} is selected, but its in-app episode adapter is not connected yet.")
-                                openLink(context, source.homeUrl)
+                                // The card represents a real AniList-listed episode page. Open that
+                                // exact page; never substitute the selected provider's homepage.
+                                if (preferredSource != "listed") {
+                                    val source = AnimeSourceRegistry.byId(preferredSource)
+                                    toast(context, "Opening the listed episode link. ${source.displayName} episode search is not connected yet.")
+                                }
+                                openLink(context, ep.url)
                             }
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
