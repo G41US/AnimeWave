@@ -70,7 +70,7 @@ class ScreenshotTest {
     @Composable
     private fun Frame(wide: Boolean, tab: String, scroll: Int = 0, content: @Composable ColumnScope.() -> Unit) {
         CompositionLocalProvider(LocalImageOverride provides images) {
-            AnimeWaveTheme(wide) { Shell(tab, {}, remember { FocusRequester() }, remember { ScrollState(scroll) }, content) }
+            AnimeWaveTheme(wide) { Shell(tab, {}, remember { FocusRequester() }, remember { ScrollState(scroll) }, content = content) }
         }
     }
 
@@ -100,6 +100,27 @@ class ScreenshotTest {
             CompositionLocalProvider(LocalImageOverride provides images) {
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(remember { ScrollState(1000) })) {
                     DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, {})
+                }
+            }
+        }
+    }
+
+    @Test fun tvSettings() = paparazzi.snapshot {
+        Frame(true, "Settings") {
+            TopSpace(); ScreenTitle("Settings")
+            SettingsScreen("1.0.12", UpdateState.Downloading(UpdateInfo(14, "1.0.14", "Redesign UI"), .42f), {}, {}, {})
+        }
+    }
+
+    @Test fun phoneSettings() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        paparazzi.snapshot {
+            CompositionLocalProvider(LocalImageOverride provides images) {
+                AnimeWaveTheme(false) {
+                    Shell("Settings", {}, remember { FocusRequester() }, remember { ScrollState(0) }, update = true) {
+                        TopSpace(); ScreenTitle("Settings")
+                        SettingsScreen("1.0.12", UpdateState.Available(UpdateInfo(14, "1.0.14", "Redesign UI: cinematic hero, Top 10")), {}, {}, {})
+                    }
                 }
             }
         }

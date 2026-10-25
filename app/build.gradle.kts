@@ -11,8 +11,24 @@ android {
         applicationId = "com.animewave.app"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // Every cloud build gets a higher number so phones and TVs see it as an update.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0.$versionCode"
+    }
+    signingConfigs {
+        // The keystore is encrypted with SIGNING_PASSWORD, a repo secret. Without it (local builds)
+        // the default debug key is used, which can't update an installed copy from the cloud.
+        create("animewave") {
+            storeFile = rootProject.file("signing/animewave-release.jks")
+            storePassword = System.getenv("SIGNING_PASSWORD")
+            keyAlias = "animewave"
+            keyPassword = System.getenv("SIGNING_PASSWORD")
+        }
+    }
+    buildTypes {
+        debug {
+            if (!System.getenv("SIGNING_PASSWORD").isNullOrEmpty()) signingConfig = signingConfigs.getByName("animewave")
+        }
     }
     buildFeatures { compose = true }
     compileOptions {
