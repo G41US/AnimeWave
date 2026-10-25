@@ -35,6 +35,8 @@ class AniyomiCatalogAdapterTest {
             )
         }
         val adapter = AniyomiCatalogAdapter(runtime, HostAnimeSource(42L, "Example", "en"))
+        val match = adapter.searchAnime("Example Anime").single()
+        adapter.getSeasons(match)
 
         val streams = adapter.resolveEpisode("episode-1")
 
