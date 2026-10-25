@@ -72,6 +72,7 @@ class AniyomiCatalogAdapter(
     override val sourceId: String = source.id.toString()
     override val displayName: String = source.name
     private val animeKeysByPageUrl = ConcurrentHashMap<String, String>()
+    private val knownEpisodeKeys = ConcurrentHashMap.newKeySet<String>()
 
     override suspend fun searchAnime(
         title: String,
@@ -112,6 +113,9 @@ class AniyomiCatalogAdapter(
             listOf(HostAnimeSeason(key = animeKey, title = match.seasonLabel ?: match.title))
         }
 
+        // Only episodes actually returned by this source's catalogue can be resolved later.
+        knownEpisodeKeys.addAll(episodes.map { it.key })
+
         return actualSeasons.map { season ->
             val seasonEpisodes = episodes.filter { episode ->
                 // Host adapters may return episode pages grouped by season in their key/page URL.
@@ -148,8 +152,11 @@ class AniyomiCatalogAdapter(
      * Resolve an episode using the host's video extractor, preserving source request headers.
      * The caller can pass the result to the existing Media3 resolver/player boundary.
      */
-    suspend fun resolveEpisode(episodeKey: String): List<ResolvedAnimeStream> =
-        runtime.resolveVideos(source.id, episodeKey)
+    suspend fun resolveEpisode(episodeKey: String): List<ResolvedAnimeStream> {
+        require(episodeKey in knownEpisodeKeys) {
+            "Episode must be discovered from this source before resolving its stream."
+        }
+        return runtime.resolveVideos(source.id, episodeKey)
             .filter { isHttpUrl(it.url) }
             .map { video ->
                 ResolvedAnimeStream(
@@ -159,6 +166,7 @@ class AniyomiCatalogAdapter(
                     title = video.quality,
                 )
             }
+    }
 
     private fun episodeBelongsToSeason(episode: HostAnimeEpisode, season: HostAnimeSeason): Boolean {
         // Only use an explicit, stable key convention from a host adapter. Never infer by title.
