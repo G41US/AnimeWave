@@ -665,14 +665,27 @@ fun DetailContent(
                     Text("Choose the preferred source for episode links. Sources not yet integrated open their website; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
                     AnimeSourceRegistry.sources.forEach { source ->
+                        val isMetadataOnly = source.id == "listed"
+                        val adapterConnected = isMetadataOnly
                         TextButton(onClick = {
                             onSourceSelected(source.id)
                             showSourcePicker = false
                         }) {
-                            Text(
-                                text = (if (source.id == selectedSourceId) "✓  " else "") + source.displayName,
-                                color = if (source.id == selectedSourceId) Violet else Color.White,
-                            )
+                            Column {
+                                Text(
+                                    text = (if (source.id == selectedSourceId) "✓  " else "") + source.displayName,
+                                    color = if (source.id == selectedSourceId) Violet else Color.White,
+                                )
+                                Text(
+                                    text = when {
+                                        isMetadataOnly -> "Metadata links only"
+                                        adapterConnected -> "Episode search connected"
+                                        else -> "Episode search not connected yet"
+                                    },
+                                    color = Muted,
+                                    fontSize = 11.sp,
+                                )
+                            }
                         }
                     }
                 }
