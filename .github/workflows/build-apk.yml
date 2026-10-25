@@ -34,16 +34,16 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Run unit tests and build debug APK
+      - name: Run unit tests and build release APK
         env:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-        run: gradle testDebugUnitTest --tests "com.animewave.app.ParsingTest" assembleDebug
+        run: gradle testDebugUnitTest --tests "com.animewave.app.ParsingTest" assembleRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AnimeWave-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: AnimeWave-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -60,12 +60,12 @@ jobs:
             echo "::warning::SIGNING_PASSWORD secret not set; skipping publish so installed apps aren't broken by a differently signed APK."
             exit 0
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk AnimeWave.apk
+          cp app/build/outputs/apk/release/app-release.apk AnimeWave.apk
           jq -n --argjson code "$GITHUB_RUN_NUMBER" --arg name "1.0.$GITHUB_RUN_NUMBER" --arg notes "$(git log -1 --format=%s)" \
             '{versionCode: $code, versionName: $name, notes: $notes}' > version.json
           gh release view latest >/dev/null 2>&1 || gh release create latest \
             --title "AnimeWave (latest build)" --target "$GITHUB_SHA" \
-            --notes "Debug APK from the newest commit on main. Direct link: https://github.com/${{ github.repository }}/releases/download/latest/AnimeWave.apk"
+            --notes "APK from the newest commit on main. Direct link: https://github.com/${{ github.repository }}/releases/download/latest/AnimeWave.apk"
           # APK first, then version.json, so the app never sees a version whose APK isn't there yet.
           gh release upload latest AnimeWave.apk --clobber
           gh release upload latest version.json --clobber

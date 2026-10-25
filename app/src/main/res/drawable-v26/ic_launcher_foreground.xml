@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Scaled into the adaptive-icon safe zone (66dp circle). -->
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.74" android:scaleY="0.74" android:translateY="1">
+        <path
+            android:pathData="M34,79 L54,29 L74,79"
+            android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="54" android:startY="28" android:endX="54" android:endY="80">
+                    <item android:offset="0" android:color="#FFC3A2FF" />
+                    <item android:offset="0.5" android:color="#FF9B6DFF" />
+                    <item android:offset="1" android:color="#FFFF5FA2" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M37,63 Q45.5,54 54,63 T71,63"
+            android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" />
+        <path
+            android:pathData="M76,27 Q77,33 83,34 Q77,35 76,41 Q75,35 69,34 Q75,33 76,27 Z"
+            android:fillColor="#FFFFFFFF" />
+    </group>
+</vector>

@@ -126,6 +126,14 @@ class ScreenshotTest {
         }
     }
 
+    @Test fun tvIntro() = paparazzi.snapshot { AnimeWaveTheme(true) { IntroContent(1f) } }
+    @Test fun tvIntroMid() = paparazzi.snapshot { AnimeWaveTheme(true) { IntroContent(.38f) } }
+
+    @Test fun phoneIntro() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        paparazzi.snapshot { AnimeWaveTheme(false) { IntroContent(1f) } }
+    }
+
     @Test fun phoneHome() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
         paparazzi.snapshot { HomeShot(wide = false) }

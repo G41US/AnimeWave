@@ -96,7 +96,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import java.io.File
-import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 
 val Ink = Color(0xFF07080D)
@@ -139,7 +138,7 @@ fun Art(url: String?, modifier: Modifier, description: String? = null) {
         Image(override, description, modifier, contentScale = ContentScale.Crop)
     } else {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(url).crossfade(true).build(),
+            model = url,
             contentDescription = description, contentScale = ContentScale.Crop, modifier = modifier,
         )
     }
@@ -512,7 +511,8 @@ private fun RankedCard(rank: Int, anime: Anime, onClick: () -> Unit) {
     }
 }
 
-class Loaded<T>(val value: T?, val failed: Boolean, val retry: () -> Unit)
+/** Data class so screens skip recomposing when nothing changed. */
+data class Loaded<T>(val value: T?, val failed: Boolean, val retry: () -> Unit)
 
 fun <T, R> Loaded<T>.map(f: (T) -> R) = Loaded(value?.let(f), failed, retry)
 
