@@ -112,3 +112,20 @@ This checklist is intentionally not marked complete until there is a real host-b
 ### Current limitation
 
 The current editing environment exposes repository file/commit operations but not a checkout/build shell capable of safely importing and compiling the upstream multi-module project. No guessed Gradle dependency or partial fake loader should be committed to disguise that limitation. A real runtime requires a full source tree import and build/test feedback; the checklist above is the acceptance gate, not a claim that those tasks have passed.
+
+## Runtime integration spike: upstream build/dependency audit (2026-10-26)
+
+The pinned upstream source was inspected directly at tag `v0.18.2.1`. This confirms the host is a multi-module application, not a standalone library:
+
+- Upstream `settings.gradle.kts` includes `:source-api`, `:core:common`, `:domain`, `:data`, `:i18n`, `:source-local`, and other application modules. Its app uses custom `mihon.*` convention plugins and multiple version catalogs.
+- `source-api/build.gradle.kts` is Kotlin Multiplatform and exposes serialization, Injekt, RxJava 1, Jsoup, NanoHTTPD, Android preferences, and core-common integration. It is not directly consumable by AnimeWave's current one-module Gradle build without bringing in or replacing those dependencies and plugin conventions.
+- `AnimeExtensionLoader` relies on host-only facilities including `TrustAnimeExtension`, `SourcePreferences`, host class-loader utilities, extension install receivers, package/signature helpers, and private extension-file handling. Copying that loader class alone would not compile or reproduce the host behavior.
+- `AnimeExtensionManager` and `AndroidAnimeSourceManager` depend on domain repositories, Injekt registrations, extension models, preferences, and source registration/lifecycle flows. They cannot be instantiated in the current app by adding a single dependency.
+- The upstream `v0.18.2.1` license is Apache-2.0. Any vendored source must retain the applicable copyright/license notices and include required license/notice attribution.
+
+### Decision for the implementation
+
+Do **not** add a guessed Maven coordinate, a moving Git dependency, or a hand-written `DexClassLoader` that claims compatibility. The next code change must be a deliberate vendoring/build-system change with a reproducible upstream source snapshot and its notices, followed by a compile of the vendored modules before wiring the runtime into `AniyomiCatalogAdapter`.
+
+The existing GitHub file-edit workflow can safely make individual text edits, but it cannot perform the required checkout, copy the complete upstream source tree, resolve Gradle dependencies, and run the Android build in one verified operation. Therefore this audit records the concrete dependency boundary; it does not claim that extension APK execution has been implemented. The required next execution environment is a full repository checkout with Gradle/build feedback.
+
