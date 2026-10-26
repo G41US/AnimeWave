@@ -82,6 +82,36 @@ class AniyomiCatalogAdapterTest {
         assertTrue(!isAccepted("https:///missing-host"))
     }
 
+    @Test
+    fun blankSearchDoesNotCallTheHost() = runBlocking {
+        val runtime = FakeRuntime()
+        val adapter = AniyomiCatalogAdapter(runtime, HostAnimeSource(42L, "Example", "en"))
+
+        val results = adapter.searchAnime("  ", listOf("", "   "))
+
+        assertTrue(results.isEmpty())
+        assertTrue(runtime.queries.isEmpty())
+    }
+
+    @Test
+    fun queryFailureIsNotSilentlyConvertedToEmptyResults() = runBlocking {
+        val runtime = object : AniyomiHostRuntime {
+            override suspend fun installedSources() = emptyList<HostAnimeSource>()
+            override suspend fun search(sourceId: Long, query: String): List<HostAnimeMatch> {
+                throw IllegalStateException("host failed")
+            }
+            override suspend fun seasons(sourceId: Long, animeKey: String) = emptyList<HostAnimeSeason>()
+            override suspend fun episodes(sourceId: Long, animeKey: String) = emptyList<HostAnimeEpisode>()
+            override suspend fun resolveVideos(sourceId: Long, episodeKey: String) = emptyList<HostVideo>()
+        }
+        val adapter = AniyomiCatalogAdapter(runtime, HostAnimeSource(42L, "Example", "en"))
+
+        val error = runCatching { adapter.searchAnime("Example") }.exceptionOrNull()
+
+        assertTrue(error is IllegalStateException)
+        assertEquals("host failed", error?.message)
+    }
+
     private fun adapterForValidation() =
         AniyomiCatalogAdapter(object : AniyomiHostRuntime {
             override suspend fun installedSources() = emptyList<HostAnimeSource>()
