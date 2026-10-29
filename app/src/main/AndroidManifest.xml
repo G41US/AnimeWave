@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Needed to discover installed extension packages on sideloaded Android TV devices. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -11,10 +13,6 @@
         android:label="AnimeWave"
         android:usesCleartextTraffic="false"
         android:supportsRtl="true">
-        <activity
-            android:name=".EmbeddedPlayerActivity"
-            android:exported="false"
-            android:screenOrientation="unspecified" />
         <activity
             android:name=".MainActivity"
             android:theme="@style/Theme.AnimeWave.Starting"
@@ -30,6 +28,10 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".playback.AnimePlayerActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updates"

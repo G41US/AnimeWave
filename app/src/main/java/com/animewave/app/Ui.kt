@@ -610,8 +610,9 @@ fun SearchBox(query: String, onChange: (String) -> Unit) {
 fun DetailContent(
     anime: Anime, saved: Boolean, watchFocus: FocusRequester,
     onBack: () -> Unit, onWatch: (String?) -> Unit, onOpen: (String) -> Unit,
-    onPlayEpisode: (Episode) -> Unit,
+    onPlayEpisode: (SourceEpisode) -> Unit,
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
+    catalogState: EpisodeCatalogState? = null,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
@@ -644,6 +645,11 @@ fun DetailContent(
             PrimaryButton(official?.let { "Watch on ${it.first}" } ?: "Watch", Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onWatch(official?.second) }
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
+            if (selectedSource.id != "listed") {
+                GhostButton("Search ${selectedSource.displayName}", Icons.Filled.Search) {
+                    onOpen(AnimeSourceRegistry.searchUrl(selectedSource.id, anime.title))
+                }
+            }
             GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
         }
     }
@@ -664,14 +670,28 @@ fun DetailContent(
                     Text("Choose the preferred source for episode links. Sources not yet integrated open their website; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
                     AnimeSourceRegistry.sources.forEach { source ->
+                        val isMetadataOnly = source.id == "listed"
+                        val adapterConnected = isMetadataOnly || source.id == "consumet"
                         TextButton(onClick = {
                             onSourceSelected(source.id)
                             showSourcePicker = false
                         }) {
-                            Text(
-                                text = (if (source.id == selectedSourceId) "✓  " else "") + source.displayName,
-                                color = if (source.id == selectedSourceId) Violet else Color.White,
-                            )
+                            Column {
+                                Text(
+                                    text = (if (source.id == selectedSourceId) "✓  " else "") + source.displayName,
+                                    color = if (source.id == selectedSourceId) Violet else Color.White,
+                                )
+                                Text(
+                                    text = when {
+                                        isMetadataOnly -> "Metadata links only"
+                                        source.id == "consumet" -> "Configure API in Settings"
+                                        adapterConnected -> "Episode search connected"
+                                        else -> "Episode search not connected yet"
+                                    },
+                                    color = Muted,
+                                    fontSize = 11.sp,
+                                )
+                            }
                         }
                     }
                 }
@@ -729,21 +749,60 @@ fun DetailContent(
                     anime.watchLinks.drop(1).forEach { (site, url) -> Chip(site, false) { onOpen(url) } }
                 }
             }
-            SectionTitle("Episodes")
-            if (anime.streamingEpisodes.isEmpty()) {
-                Text("No episode links listed for this title yet.", color = Muted, modifier = Modifier.padding(horizontal = gutter))
-            } else {
-                // AniList's order; each opens the episode on the official site.
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    items(anime.streamingEpisodes) { ep ->
-                        EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
-                            onPlayEpisode(ep)
+            SectionTitle("Season & Episode Catalogue")
+            when (val catalogue = catalogState) {
+                null, EpisodeCatalogState.Loading -> {
+                    Text("Checking configured episode sources…", color = Muted, modifier = Modifier.padding(horizontal = gutter))
+                    Spacer(Modifier.height(10.dp))
+                }
+                is EpisodeCatalogState.Failed -> {
+                    Text(catalogue.message, color = Muted, modifier = Modifier.padding(horizontal = gutter))
+                }
+                is EpisodeCatalogState.Ready -> {
+                    Text(
+                        "${catalogue.checkedSources} catalogue source(s) checked",
+                        color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter)
+                    )
+                    if (catalogue.seasons.isEmpty()) {
+                        Text("No episode links were listed for this title. This does not mean the selected streaming sites lack episodes.", color = Muted, modifier = Modifier.padding(horizontal = gutter, vertical = 8.dp))
+                    } else {
+                        catalogue.seasons.forEach { season ->
+                            Text(
+                                listOfNotNull(season.title, season.year?.toString(), season.format).joinToString(" · "),
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                                modifier = Modifier.padding(start = gutter, end = gutter, top = 8.dp)
+                            )
+                            Text(
+                                "${season.episodes.size} episode links · ${season.episodes.firstOrNull()?.sourceName ?: "catalogue"}",
+                                color = Muted, fontSize = 12.sp,
+                                modifier = Modifier.padding(start = gutter, end = gutter, top = 2.dp)
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                items(season.episodes, key = { it.id }) { ep ->
+                                    val asEpisode = Episode(ep.title, ep.thumbnail, ep.pageUrl, ep.sourceName)
+                                    EpisodeCard(asEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
+                                        onPlayEpisode(ep)
+                                    }
+                                }
+                            }
                         }
                     }
+                    if (catalogue.unavailableSources.isNotEmpty()) {
+                        Text(
+                            "Could not check: ${catalogue.unavailableSources.joinToString()}",
+                            color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 6.dp)
+                        )
+                    }
                 }
+            }
+            if (anime.streamingEpisodes.isNotEmpty()) {
+                Text(
+                    "These are AniList metadata links, not verified availability across your 12 selected streaming sites.",
+                    color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 4.dp)
+                )
             }
             if (wide && anime.synopsis.length > 280) {
                 SectionTitle("Story")
@@ -896,7 +955,15 @@ private fun SettingsCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onDownload: (UpdateInfo) -> Unit, onInstall: (File) -> Unit) {
+fun SettingsScreen(
+    version: String,
+    state: UpdateState,
+    onCheck: () -> Unit,
+    onDownload: (UpdateInfo) -> Unit,
+    onInstall: (File) -> Unit,
+    consumetBaseUrl: String,
+    onConsumetBaseUrlChange: (String) -> Unit,
+) {
     Column(Modifier.padding(horizontal = gutter).widthIn(max = 720.dp)) {
         SettingsCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -944,6 +1011,39 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
                 UpdateState.Checking -> GhostButton("Checking…", Icons.Filled.Refresh) {}
                 else -> PrimaryButton("Check for updates", Icons.Filled.Refresh, onClick = onCheck)
             }
+        }
+        SettingsCard {
+            Text("Episode discovery API", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Optional. Enter the HTTPS base URL of a Consumet-compatible API instance you control. AnimeWave does not assume a public API is available.",
+                color = Soft, fontSize = 14.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = consumetBaseUrl,
+                onValueChange = onConsumetBaseUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API base URL") },
+                placeholder = { Text("https://your-api.example.com") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Violet,
+                    unfocusedBorderColor = Muted,
+                    focusedLabelColor = Violet,
+                    unfocusedLabelColor = Muted,
+                    cursorColor = Violet,
+                ),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (consumetBaseUrl.isBlank()) "Status: disabled — AniList catalogue remains available."
+                else "Status: configured — AnimeWave will try this API for episode lists and direct streams.",
+                color = Muted, fontSize = 13.sp,
+            )
         }
         SettingsCard {
             Text("Install on another device", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)

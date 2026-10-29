@@ -116,13 +116,9 @@ private fun openLink(context: Context, url: String) {
         return
     }
     try {
-        context.startActivity(
-            Intent(context, EmbeddedPlayerActivity::class.java)
-                .putExtra(EmbeddedPlayerActivity.EXTRA_URL, url)
-                .putExtra(EmbeddedPlayerActivity.EXTRA_TITLE, "ANIMEWAVE PLAYER")
-        )
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     } catch (e: ActivityNotFoundException) {
-        toast(context, "AnimeWave could not open this source.")
+        toast(context, "No browser is available to open this source.")
     }
 }
 
@@ -173,6 +169,7 @@ fun AnimeWaveApp() {
     var selected by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<LocalEpisode<Uri>>>(emptyList()) }
     var playing by remember { mutableStateOf<Pair<List<MediaItem>, Int>?>(null) }
+    var playbackHeaders by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var askLink by remember { mutableStateOf(false) }
     var showIntro by rememberSaveable { mutableStateOf(true) }
     val scroll = rememberScrollState()
@@ -182,6 +179,7 @@ fun AnimeWaveApp() {
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
     var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "listed") }
+    var consumetBaseUrl by remember { mutableStateOf(prefs.getString("consumetBaseUrl", "") ?: "") }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
@@ -242,15 +240,26 @@ fun AnimeWaveApp() {
         val nowPlaying = playing
         val anime = selected
         when {
-            nowPlaying != null -> PlayerScreen(nowPlaying.first, nowPlaying.second) { playing = null }
+            nowPlaying != null -> PlayerScreen(nowPlaying.first, nowPlaying.second, playbackHeaders) { playing = null; playbackHeaders = emptyMap() }
             anime != null -> {
                 BackHandler { selected = null }
                 LaunchedEffect(anime.id) { if (isTv) runCatching { detailFocus.requestFocus() } }
+                val catalog = load(anime.id, consumetBaseUrl) {
+                    val adapters = buildList<AnimeSourceAdapter> {
+                        add(AniListListedEpisodeAdapter())
+                        if (consumetBaseUrl.isNotBlank()) {
+                            runCatching { add(ConsumetClient(consumetBaseUrl)) }
+                                .onFailure { throw IllegalArgumentException(it.message ?: "Invalid episode API URL") }
+                        }
+                    }
+                    EpisodeCatalogRepository(adapters).load(anime.title)
+                }
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(rememberScrollState())) {
                     DetailContent(
                         anime, saved = anime.id in saved, watchFocus = detailFocus,
                         onBack = { selected = null }, onWatch = ::watch, onOpen = { openLink(context, it) },
                         selectedSourceId = preferredSource,
+                        catalogState = catalog.value,
                         onSourceSelected = { sourceId ->
                             preferredSource = sourceId
                             prefs.edit().putString("preferredSource", sourceId).apply()
@@ -262,13 +271,33 @@ fun AnimeWaveApp() {
                                     .setUri(stream.url)
                                     .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
                                     .build()
+                                playbackHeaders = emptyMap()
                                 playing = listOf(item) to 0
-                            } else if (preferredSource == "listed") {
-                                openLink(context, ep.url)
+                            } else if (ep.sourceId == "consumet" && consumetBaseUrl.isNotBlank()) {
+                                scope.launch {
+                                    try {
+                                        val resolved = com.animewave.app.playback.ConsumetStreamResolver(
+                                            ConsumetClient(consumetBaseUrl)
+                                        ).resolve(ep.id)
+                                        val item = MediaItem.Builder()
+                                            .setUri(resolved.url)
+                                            .setMimeType(resolved.mimeType)
+                                            .setMediaMetadata(
+                                                androidx.media3.common.MediaMetadata.Builder()
+                                                    .setTitle("${anime.title} — ${ep.title}")
+                                                    .build()
+                                            )
+                                            .build()
+                                        playbackHeaders = resolved.headers
+                                        playing = listOf(item) to 0
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        toast(context, "Couldn't load this episode: ${error.message ?: "API error"}")
+                                    }
+                                }
                             } else {
-                                val source = AnimeSourceRegistry.byId(preferredSource)
-                                toast(context, "${source.displayName} is selected, but its in-app episode adapter is not connected yet.")
-                                openLink(context, source.homeUrl)
+                                openLink(context, ep.pageUrl)
                             }
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
@@ -321,6 +350,11 @@ fun AnimeWaveApp() {
                             onInstall = { apk ->
                                 if (!Updates.install(context, apk)) toast(context, "Allow AnimeWave to install apps, then tap Install update again.")
                             },
+                            consumetBaseUrl = consumetBaseUrl,
+                            onConsumetBaseUrlChange = { value ->
+                                consumetBaseUrl = value
+                                prefs.edit().putString("consumetBaseUrl", value.trim()).apply()
+                            },
                         )
                     }
                     else -> {
@@ -335,7 +369,7 @@ fun AnimeWaveApp() {
                                 }
                             },
                             onLink = { askLink = true },
-                            onPlay = { i -> playing = episodes.map { it.toMediaItem() } to i },
+                            onPlay = { i -> playbackHeaders = emptyMap(); playing = episodes.map { it.toMediaItem() } to i },
                         )
                     }
                 }
@@ -343,6 +377,7 @@ fun AnimeWaveApp() {
         }
         if (askLink) LinkDialog(onDismiss = { askLink = false }) { url ->
             askLink = false
+            playbackHeaders = emptyMap()
             playing = listOf(MediaItem.fromUri(url)) to 0
         }
         // Title screen on top while the catalog loads underneath.

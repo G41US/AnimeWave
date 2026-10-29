@@ -83,7 +83,7 @@ class ScreenshotTest {
     private fun DetailShot(wide: Boolean) = AnimeWaveTheme(wide) {
         CompositionLocalProvider(LocalImageOverride provides images) {
             Column(Modifier.fillMaxSize().background(Ink)) {
-                DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, "listed", {}, {}, {})
+                DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, "listed", {}, null, {}, {})
             }
         }
     }
@@ -99,7 +99,7 @@ class ScreenshotTest {
         AnimeWaveTheme(true) {
             CompositionLocalProvider(LocalImageOverride provides images) {
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(remember { ScrollState(1000) })) {
-                    DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, "listed", {}, {}, {})
+                    DetailContent(data.getValue("trending")[1], false, FocusRequester(), {}, {}, {}, {}, "listed", {}, null, {}, {})
                 }
             }
         }
@@ -108,7 +108,7 @@ class ScreenshotTest {
     @Test fun tvSettings() = paparazzi.snapshot {
         Frame(true, "Settings") {
             ScreenTitle("Settings")
-            SettingsScreen("1.0.12", UpdateState.Downloading(UpdateInfo(14, "1.0.14", "Redesign UI"), .42f), {}, {}, {})
+            SettingsScreen("1.0.12", UpdateState.Downloading(UpdateInfo(14, "1.0.14", "Redesign UI"), .42f), {}, {}, {}, "", {})
         }
     }
 
@@ -119,7 +119,7 @@ class ScreenshotTest {
                 AnimeWaveTheme(false) {
                     Shell("Settings", {}, remember { FocusRequester() }, remember { ScrollState(0) }, update = true) {
                         ScreenTitle("Settings")
-                        SettingsScreen("1.0.12", UpdateState.Available(UpdateInfo(14, "1.0.14", "Redesign UI: cinematic hero, Top 10")), {}, {}, {})
+                        SettingsScreen("1.0.12", UpdateState.Available(UpdateInfo(14, "1.0.14", "Redesign UI: cinematic hero, Top 10")), {}, {}, {}, "", {})
                     }
                 }
             }
