@@ -137,6 +137,7 @@ object ProviderManager {
     private val adapters = CopyOnWriteArrayList<AnimeProvider>().apply {
         add(AniListStreamingProvider())
         add(KitsuEpisodeProvider())
+        add(InternetArchiveProvider())
     }
 
     fun register(provider: AnimeProvider) {
