@@ -11,7 +11,7 @@ Anime-only Android app starter for Android phones and Android TV / Airtel Smart 
 - Phones (edge-to-edge, rotation-safe, landscape fullscreen player) and Android TV / Airtel box (D-pad focus rings, Back navigation, remote media keys)
 
 ## Cloud build
-Every push to `main` runs unit tests and builds a debug APK in GitHub Actions. Download it from the run's **AnimeWave-debug-apk** artifact.
+Every pull request and push to `main` runs the parsing and provider-engine unit tests and builds a release APK in GitHub Actions. Download it from the run's **AnimeWave-apk** artifact.
 
 ## Updates and signing
 - Install with Downloader code **5118333**. After that, **Settings (gear icon) → Check for updates** downloads and installs new versions in the app, and an **Update** button appears in the top bar when one is out.
