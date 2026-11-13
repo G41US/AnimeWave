@@ -650,7 +650,7 @@ fun DetailContent(
     }
     val buttons: @Composable () -> Unit = {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton(official?.let { "Watch on ${it.first}" } ?: "Watch", Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onWatch(official?.second) }
+            PrimaryButton("Watch in AnimeWave", Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) {\n                val firstEpisode = discoveredEpisodes.firstOrNull()\n                if (firstEpisode != null) onPlayEpisode(firstEpisode) else onWatch(null)\n            }
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
             GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
