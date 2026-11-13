@@ -1,5 +1,8 @@
 package com.animewave.app
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 /**
  * Display names and home pages for source choices. These are navigation entries, not
  * claims that a provider exposes an API or a direct stream. Native playback is enabled
@@ -16,20 +19,34 @@ data class AnimeSource(
 
 object AnimeSourceRegistry {
     val sources = listOf(
-        AnimeSource("listed", "Wave Source 1", "https://anilist.co", AnimeSource.Kind.LISTED_EPISODE),
-        AnimeSource("copon", "Wave Source 2", "https://copon.site/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anivault", "Wave Source 3", "https://anivault.lol/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anineko", "Wave Source 4", "https://anineko.com/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animeheaven", "Wave Source 5", "https://animeheaven.me/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("reanime", "Wave Source 6", "https://reanime.app/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anidb", "Wave Source 7", "https://anidb.net/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animepahe", "Wave Source 8", "https://animepahe.ru/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anikoto", "Wave Source 9", "https://anikoto.to/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("animenexus", "Wave Source 10", "https://animenexus.com/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("miruro", "Wave Source 11", "https://miruro.tv/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("mkissa", "Wave Source 12", "https://mkissa.com/", AnimeSource.Kind.EXTERNAL_SITE),
-        AnimeSource("anichi", "Wave Source 13", "https://anichi.to/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("listed", "AniList episodes", "https://anilist.co", AnimeSource.Kind.LISTED_EPISODE),
+        AnimeSource("copon", "Copon", "https://copon.site/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anivault", "AniVault", "https://anivault.lol/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anineko", "AniNeko", "https://anineko.com/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("animeheaven", "AnimeHeaven", "https://animeheaven.me/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("reanime", "ReAnime", "https://reanime.app/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anidb", "AniDB", "https://anidb.net/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("animepahe", "AnimePahe", "https://animepahe.ru/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anikoto", "AniKoto", "https://anikoto.to/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("animenexus", "AnimeNexus", "https://animenexus.com/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("miruro", "Miruro", "https://miruro.tv/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("mkissa", "Mkissa", "https://mkissa.com/", AnimeSource.Kind.EXTERNAL_SITE),
+        AnimeSource("anichi", "AniChi", "https://anichi.to/", AnimeSource.Kind.EXTERNAL_SITE),
     )
 
     fun byId(id: String): AnimeSource = sources.firstOrNull { it.id == id } ?: sources.first()
+
+    /**
+     * Search-engine fallback scoped to the selected source host.
+     * This is navigation only, not a provider integration or searchable API.
+     */
+    fun searchUrl(id: String, animeTitle: String, episodeTitle: String = ""): String {
+        val source = byId(id)
+        if (source.kind == AnimeSource.Kind.LISTED_EPISODE) return source.homeUrl
+        val host = runCatching { java.net.URI(source.homeUrl).host }
+            .getOrNull()?.takeIf { it.isNotBlank() } ?: return source.homeUrl
+        val query = (listOf("site:" + host, animeTitle, episodeTitle).filter { it.isNotBlank() }).joinToString(" ")
+        val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
+        return "https://www.google.com/search?q=" + encoded
+    }
 }

@@ -11,7 +11,7 @@ Anime-only Android app starter for Android phones and Android TV / Airtel Smart 
 - Phones (edge-to-edge, rotation-safe, landscape fullscreen player) and Android TV / Airtel box (D-pad focus rings, Back navigation, remote media keys)
 
 ## Cloud build
-Every push to `main` runs unit tests and builds a debug APK in GitHub Actions. Download it from the run's **AnimeWave-debug-apk** artifact.
+Every pull request and push to `main` runs the parsing and provider-engine unit tests and builds a release APK in GitHub Actions. Download it from the run's **AnimeWave-apk** artifact.
 
 ## Updates and signing
 - Install with Downloader code **5118333**. After that, **Settings (gear icon) → Check for updates** downloads and installs new versions in the app, and an **Update** button appears in the top bar when one is out.
@@ -32,3 +32,7 @@ For command line builds, use `gradle assembleDebug` from the project root after 
 - The app only plays your own files or links you're authorized to use; it does not scrape or host anime.
 - Some file managers on Android TV boxes don't include a file picker. Use **Play a stream link** there.
 - AniList limits requests per minute; the app debounces search to stay under it.
+
+## Provider engine
+
+The app now has a provider-adapter contract, bounded episode discovery, episode matching/grouping with per-episode source choice, an authorized native-playback resolver, subtitle configuration helpers, and local Continue Watching history. AniList is the only built-in episode-listing adapter at present. Other named sources remain website shortcuts; selecting one opens a search-engine query scoped to that source's configured host, not a direct integration. See [docs/PROVIDER_ENGINE.md](docs/PROVIDER_ENGINE.md) before implementing another adapter.
