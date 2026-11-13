@@ -15,6 +15,38 @@ class ProviderEngineTest {
         assertNull(EpisodeMatcher.episodeNumber("Special OVA"))
     }
 
+    @Test fun extractsSeasonAndEpisodeTogetherWithoutMixingSeasons() {
+        assertEquals(EpisodeIdentity(2, 3), EpisodeMatcher.identity("Show S02E03 1080p"))
+        assertEquals(EpisodeIdentity(2, 3), EpisodeMatcher.identity("Show Season 2 Episode 3"))
+        assertEquals(EpisodeIdentity(2, 3), EpisodeMatcher.identity("Show 2x03"))
+        assertEquals(EpisodeIdentity(null, 3), EpisodeMatcher.identity("Show Episode 3"))
+    }
+
+    @Test fun discoveryKeepsSameEpisodeNumberInDifferentSeasonsSeparate() = runBlocking {
+        val anime = Anime(
+            id = 79, title = "Season Test", cover = null, coverXL = null, banner = null,
+            accent = null, genres = emptyList(), year = null, format = "TV", episodes = 6,
+            score = null, synopsis = "", watchLinks = emptyList(), streamingEpisodes = emptyList(),
+        )
+        val provider = object : AnimeProvider {
+            override val id = "season-test"
+            override val displayName = "Season Test"
+            override suspend fun searchEpisodes(anime: Anime) = listOf(
+                ProviderEpisode(id, displayName, anime.id, "Show S01E01", null, null, "https://example.com/s1e1"),
+                ProviderEpisode(id, displayName, anime.id, "Show S02E01", null, null, "https://example.com/s2e1"),
+            )
+        }
+        ProviderManager.register(provider)
+        try {
+            val groups = ProviderManager.discover(anime).groups
+            assertEquals(2, groups.size)
+            assertEquals(setOf(1, 2), groups.mapNotNull { it.seasonNumber }.toSet())
+            assertEquals(setOf(1), groups.mapNotNull { it.episodeNumber }.toSet())
+        } finally {
+            ProviderManager.unregister(provider.id)
+        }
+    }
+
     @Test fun normalizesEpisodeTitles() {
         assertEquals("show", EpisodeMatcher.normalize("Show Episode 02"))
         assertEquals("show", EpisodeMatcher.normalize("Show - Ep 2"))
