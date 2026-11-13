@@ -38,6 +38,8 @@ data class ProviderStream(
     val mimeType: String? = null,
     val quality: String? = null,
     val subtitles: List<ProviderSubtitle> = emptyList(),
+    /** Non-secret HTTP metadata supplied by an authorized provider integration. Never persist or log. */
+    val requestHeaders: Map<String, String> = emptyMap(),
 )
 
 interface AnimeProvider {
@@ -226,7 +228,25 @@ object ProviderManager {
         )
         val normalizedMime = stream.mimeType?.substringBefore(';')?.trim()?.lowercase()
         val mimeAllowed = normalizedMime == null || normalizedMime in allowedMimeTypes
-        return stream.takeIf { it.rightsConfirmed && safeHttps(it.url) && mimeAllowed }
+        if (!stream.rightsConfirmed || !safeHttps(stream.url) || !mimeAllowed) return null
+        val safeHeaders = sanitizeRequestHeaders(stream.requestHeaders)
+        return stream.copy(requestHeaders = safeHeaders)
+    }
+
+    /**
+     * Only harmless request context is accepted. Cookies, authorization credentials and
+     * arbitrary headers are deliberately excluded; integrations must use permitted public
+     * playback interfaces and must not smuggle account secrets into the player.
+     */
+    private fun sanitizeRequestHeaders(headers: Map<String, String>): Map<String, String> {
+        val allowed = setOf("user-agent", "referer", "origin", "accept", "accept-language")
+        return headers.entries.mapNotNull { (name, value) ->
+            val key = name.trim().lowercase()
+            val cleanValue = value.trim()
+            if (key in allowed && cleanValue.isNotEmpty() && cleanValue.length <= 2048 &&
+                !cleanValue.contains('\r') && !cleanValue.contains('\n')
+            ) name.trim() to cleanValue else null
+        }.toMap()
     }
 
     private fun safeHttps(value: String): Boolean = runCatching {
