@@ -76,7 +76,7 @@ class ScreenshotTest {
 
     @Composable
     private fun HomeShot(wide: Boolean, scroll: Int = 0) = Frame(wide, "Home", scroll) {
-        HomeContent(home(), setOf(data.getValue("trending").first().id), FocusRequester(), {}, {}, {})
+        HomeContent(home(), setOf(data.getValue("trending").first().id), FocusRequester(), {}, {}, {}, onPlayClassic = {})
     }
 
     @Composable
@@ -142,6 +142,20 @@ class ScreenshotTest {
     @Test fun phoneHomeRows() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
         paparazzi.snapshot { HomeShot(wide = false, scroll = 1700) }
+    }
+
+    @Test fun phoneDetailEpisodes() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        val anime = data.getValue("trending").firstOrNull { it.streamingEpisodes.isNotEmpty() } ?: data.getValue("trending").first()
+        paparazzi.snapshot {
+            AnimeWaveTheme(false) {
+                CompositionLocalProvider(LocalImageOverride provides images) {
+                    Column(Modifier.fillMaxSize().background(Ink).verticalScroll(remember { ScrollState(1500) })) {
+                        DetailContent(anime, true, FocusRequester(), {}, {}, {}, {}, "listed", {}, {}, {})
+                    }
+                }
+            }
+        }
     }
 
     @Test fun phoneDetail() {
