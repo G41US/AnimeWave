@@ -66,7 +66,7 @@ private val PickTypes = arrayOf(
     "video/*", "application/x-subrip", "text/vtt", "text/x-ssa", "application/octet-stream",
 )
 
-private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L, val requestHeaders: Map<String, String> = emptyMap())
+private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L, val requestHeaders: Map<String, String> = emptyMap(), val fallbacks: List<PlayerFallback> = emptyList())
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -259,6 +259,7 @@ fun AnimeWaveApp() {
                 startIndex = nowPlaying.startIndex,
                 startPositionMs = nowPlaying.startPositionMs,
                 requestHeaders = nowPlaying.requestHeaders,
+                fallbacks = nowPlaying.fallbacks,
                 onExit = { playing = null },
                 onProgress = ::recordPlayback,
             )
@@ -416,7 +417,24 @@ fun AnimeWaveApp() {
                             .setTitle((selected?.title ?: "Anime") + " — " + candidate.episode.title + " · " + stream.providerName).build())
                         .setSubtitleConfigurations(SubtitleManager.configurations(stream.subtitles))
                     stream.mimeType?.let { builder.setMimeType(it) }
-                    playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = stream.requestHeaders)
+                    val fallbackSources = candidates
+                        .filterNot { it == candidate }
+                        .map { alternate ->
+                            val alternateStream = alternate.stream
+                            val alternateItem = MediaItem.Builder()
+                                .setUri(alternateStream.url)
+                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
+                                    .setTitle((selected?.title ?: "Anime") + " — " + alternate.episode.title + " · " + alternateStream.providerName).build())
+                                .setSubtitleConfigurations(SubtitleManager.configurations(alternateStream.subtitles))
+                                .apply { alternateStream.mimeType?.let { setMimeType(it) } }
+                                .build()
+                            PlayerFallback(alternateItem, alternateStream.requestHeaders)
+                        }
+                    playing = PlayerLaunch(
+                        listOf(builder.build()), 0,
+                        requestHeaders = stream.requestHeaders,
+                        fallbacks = fallbackSources,
+                    )
                 },
             )
         }
