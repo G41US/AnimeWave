@@ -370,7 +370,7 @@ fun AnimeWaveApp() {
                         },
                         // Public-domain native playback test, shown as a Home card instead of a bare button.
                         onPlayClassic = {
-                            val testUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e8/Sanae_Yamamoto-_My_Big_Emergency_%281936%29.ogv/Sanae_Yamamoto-_My_Big_Emergency_%281936%29.ogv.360p.mp4"
+                            val testUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/Sanae_Yamamoto-_My_Big_Emergency_%281936%29.ogv/Sanae_Yamamoto-_My_Big_Emergency_%281936%29.ogv.360p.mp4"
                             val testItem = MediaItem.Builder()
                                 .setUri(testUrl)
                                 .setMimeType("video/mp4")
