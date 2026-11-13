@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,6 +32,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -686,7 +689,7 @@ fun DetailContent(
             containerColor = Panel,
             title = { Text("Choose a source") },
             text = {
-                Column {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                     Text("Choose the preferred source for episode links. Sources not yet integrated open their website; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
                     AnimeSourceRegistry.sources.forEach { source ->
@@ -829,7 +832,7 @@ private fun EpisodeCard(ep: Episode, nativeAvailable: Boolean, onClick: () -> Un
         }
         Spacer(Modifier.height(8.dp))
         Text(ep.title, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPEN OFFICIAL SOURCE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp))
+        Text(if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPEN SOURCE PAGE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
