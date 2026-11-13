@@ -10,6 +10,12 @@ on:
 permissions:
   contents: write # publish the APK to the "latest" release
 
+# One build per branch at a time. On main, a running build finishes and only the newest queued
+# commit builds next, so an older build can never overwrite a newer "latest" release mid-download.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -58,6 +64,12 @@ jobs:
         run: |
           if [ "$SIGNED" != "true" ]; then
             echo "::warning::SIGNING_PASSWORD secret not set; skipping publish so installed apps aren't broken by a differently signed APK."
+            exit 0
+          fi
+          # Never replace a newer published build with an older one (e.g. a re-run of an old commit).
+          PUBLISHED=$(curl -fsSL "https://github.com/${{ github.repository }}/releases/download/latest/version.json" 2>/dev/null | jq -r '.versionCode // 0' || echo 0)
+          if [ "${PUBLISHED:-0}" -gt "$GITHUB_RUN_NUMBER" ]; then
+            echo "::notice::Release already has build $PUBLISHED, newer than $GITHUB_RUN_NUMBER; not publishing."
             exit 0
           fi
           cp app/build/outputs/apk/release/app-release.apk AnimeWave.apk

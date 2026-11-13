@@ -56,7 +56,31 @@ object Updates {
     fun installedName(context: Context): String =
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
 
+    /**
+     * Downloads the latest APK, retrying once (the release can be briefly unavailable while a new
+     * build is being published), then checks it really is a newer AnimeWave before installing.
+     */
     suspend fun download(context: Context, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
+        val apk = try {
+            fetchApk(context, onProgress)
+        } catch (e: IOException) {
+            kotlinx.coroutines.delay(4_000)
+            onProgress(0f)
+            fetchApk(context, onProgress)
+        }
+        val archive = context.packageManager.getPackageArchiveInfo(apk.path, 0)
+        if (archive == null || archive.packageName != context.packageName) {
+            apk.delete()
+            throw IOException("the file wasn't a valid AnimeWave update")
+        }
+        if (PackageInfoCompat.getLongVersionCode(archive) <= installedCode(context)) {
+            apk.delete()
+            throw IOException("a new build is being published right now. Wait a minute and check again")
+        }
+        apk
+    }
+
+    private fun fetchApk(context: Context, onProgress: (Float) -> Unit): File {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val part = File(dir, "AnimeWave.apk.part")
         val apk = File(dir, "AnimeWave.apk")
@@ -78,10 +102,10 @@ object Updates {
                     }
                 }
             }
-            if (total > 0 && done != total) throw IOException("Download was cut off. Try again.")
+            if (total > 0 && done != total) throw IOException("the download was cut off")
             apk.delete()
-            if (!part.renameTo(apk)) throw IOException("Couldn't save the update.")
-            apk
+            if (!part.renameTo(apk)) throw IOException("couldn't save the update")
+            return apk
         } finally {
             conn.disconnect()
             part.delete()
