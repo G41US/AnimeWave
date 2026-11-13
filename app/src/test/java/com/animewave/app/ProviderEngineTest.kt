@@ -81,6 +81,13 @@ class ProviderEngineTest {
         assertNull(SubtitleManager.mimeType("https://example.com/captions.txt"))
     }
 
+    @Test fun externalSourceSearchIsScopedToItsConfiguredHost() {
+        val url = AnimeSourceRegistry.searchUrl("animepahe", "Frieren Beyond Journey End", "Episode 02")
+        assertEquals(true, url.startsWith("https://www.google.com/search?q="))
+        assertEquals(true, url.contains("site%3Aanimepahe.ru"))
+        assertEquals("https://anilist.co", AnimeSourceRegistry.searchUrl("listed", "Frieren", "Episode 2"))
+    }
+
     @Test fun progressIsBounded() {
         val record = PlaybackRecord("content://media/1", "Episode 1", 150, 100, 1)
         assertEquals(1f, record.progress)
