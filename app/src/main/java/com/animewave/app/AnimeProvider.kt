@@ -20,6 +20,7 @@ data class ProviderEpisode(
     val episodeNumber: Int?,
     val thumbnail: String?,
     val pageUrl: String,
+    val seasonNumber: Int? = null,
 )
 
 data class ProviderSubtitle(
@@ -59,6 +60,7 @@ data class ProviderEpisodeGroup(
     val episodeNumber: Int?,
     val title: String,
     val episodes: List<ProviderEpisode>,
+    val seasonNumber: Int? = null,
 )
 
 data class ProviderDiscoveryResult(
@@ -70,17 +72,40 @@ data class ProviderDiscoveryResult(
     }
 }
 
-object EpisodeMatcher {
-    private val episodePattern = Regex("""(?i)\b(?:episode|ep|e)\s*[-_.#]?\s*(\d{1,4})\b""")
-    private val seasonPattern = Regex("""(?i)\b\d{1,2}x(\d{1,3})\b""")
+data class EpisodeIdentity(
+    val seasonNumber: Int?,
+    val episodeNumber: Int?,
+)
 
-    fun episodeNumber(title: String): Int? =
-        episodePattern.find(title)?.groupValues?.getOrNull(1)?.toIntOrNull()
-            ?: seasonPattern.find(title)?.groupValues?.getOrNull(1)?.toIntOrNull()
+object EpisodeMatcher {
+    private val seasonEpisodePattern =
+        Regex("""(?i)\bS(?:eason)?\s*(\d{1,2})\s*[-_. ]*\s*E(?:pisode)?\s*(\d{1,3})\b""")
+    private val seasonXPattern = Regex("""(?i)\b(\d{1,2})\s*x\s*(\d{1,3})\b""")
+    private val episodePattern = Regex("""(?i)\b(?:episode|ep|e)\s*[-_.#]?\s*(\d{1,4})\b""")
+    private val seasonOnlyPattern = Regex("""(?i)\bseason\s*\d{1,2}\b""")
+
+    fun identity(title: String): EpisodeIdentity {
+        val seasonEpisode = seasonEpisodePattern.find(title)
+        if (seasonEpisode != null) return EpisodeIdentity(
+            seasonEpisode.groupValues[1].toIntOrNull(),
+            seasonEpisode.groupValues[2].toIntOrNull(),
+        )
+        val seasonX = seasonXPattern.find(title)
+        if (seasonX != null) return EpisodeIdentity(
+            seasonX.groupValues[1].toIntOrNull(),
+            seasonX.groupValues[2].toIntOrNull(),
+        )
+        return EpisodeIdentity(null, episodePattern.find(title)?.groupValues?.getOrNull(1)?.toIntOrNull())
+    }
+
+    fun seasonNumber(title: String): Int? = identity(title).seasonNumber
+    fun episodeNumber(title: String): Int? = identity(title).episodeNumber
 
     fun normalize(title: String): String = title.lowercase()
+        .replace(seasonEpisodePattern, " ")
+        .replace(seasonXPattern, " ")
         .replace(episodePattern, " ")
-        .replace(seasonPattern, " ")
+        .replace(seasonOnlyPattern, " ")
         .replace(Regex("""[^a-z0-9]+"""), " ")
         .trim()
         .replace(Regex("""\s+"""), " ")
@@ -148,8 +173,22 @@ object ProviderManager {
 
         val statuses = results.map { it.first }
         val episodes = results.flatMap { it.second }
+            .map { episode ->
+                val identity = EpisodeMatcher.identity(episode.title)
+                episode.copy(
+                    seasonNumber = episode.seasonNumber ?: identity.seasonNumber,
+                    episodeNumber = episode.episodeNumber ?: identity.episodeNumber,
+                )
+            }
+            .distinctBy { it.providerId + "|" + it.pageUrl.lowercase() }
         val groups = episodes.groupBy { ep ->
-            ep.episodeNumber?.let { "episode:" + it } ?: "title:" + EpisodeMatcher.normalize(ep.title)
+            val season = ep.seasonNumber?.toString() ?: "unknown"
+            val number = ep.episodeNumber
+            if (number != null) "season:$season:episode:$number"
+            else {
+                val normalizedTitle = EpisodeMatcher.normalize(ep.title)
+                "season:$season:title:" + normalizedTitle.ifBlank { ep.pageUrl.lowercase() }
+            }
         }.map { (key, variants) ->
             val sorted = variants.sortedBy { it.providerName.lowercase() }
             ProviderEpisodeGroup(
@@ -157,8 +196,13 @@ object ProviderManager {
                 episodeNumber = sorted.firstNotNullOfOrNull { it.episodeNumber },
                 title = sorted.first().title,
                 episodes = sorted,
+                seasonNumber = sorted.firstNotNullOfOrNull { it.seasonNumber },
             )
-        }.sortedWith(compareBy<ProviderEpisodeGroup> { it.episodeNumber ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
+        }.sortedWith(
+            compareBy<ProviderEpisodeGroup> { it.seasonNumber ?: Int.MAX_VALUE }
+                .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
+                .thenBy { it.title.lowercase() }
+        )
 
         ProviderDiscoveryResult(groups, statuses)
     }
