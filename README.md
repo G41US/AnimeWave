@@ -35,4 +35,4 @@ For command line builds, use `gradle assembleDebug` from the project root after 
 
 ## Provider engine
 
-The app now has a provider-adapter contract, bounded episode discovery, episode matching/grouping, an authorized native-playback resolver, subtitle configuration helpers, and local Continue Watching history. AniList is the only built-in episode-listing adapter at present; the remaining named source entries are website shortcuts until supported adapters are added. See [docs/PROVIDER_ENGINE.md](docs/PROVIDER_ENGINE.md) before implementing another adapter.
+The app now has a provider-adapter contract, bounded episode discovery, episode matching/grouping with per-episode source choice, an authorized native-playback resolver, subtitle configuration helpers, and local Continue Watching history. AniList is the only built-in episode-listing adapter at present. Other named sources remain website shortcuts; selecting one opens a search-engine query scoped to that source's configured host, not a direct integration. See [docs/PROVIDER_ENGINE.md](docs/PROVIDER_ENGINE.md) before implementing another adapter.
