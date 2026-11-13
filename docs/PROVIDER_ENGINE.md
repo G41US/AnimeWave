@@ -21,7 +21,7 @@ Implement `AnimeProvider` in a new adapter file:
 4. Implement `resolve(episode)` only when the publisher explicitly permits native playback. Return a `ProviderStream` with `rightsConfirmed = true`, a direct HTTPS media URL, an allowed MIME type, and any permitted subtitle tracks.
 5. Register the adapter with `ProviderManager.register(MyProvider())` during application startup.
 
-Do not treat an episode webpage as a direct media URL. Do not add private keys, cookies, account tokens, or embedded decryption secrets to the APK. Do not bypass access controls or publisher restrictions. A provider that only supplies a webpage should return no native stream; AnimeWave can still open the HTTPS page in its embedded browser.
+External source search is only a convenience for locating a title on the selected site. It does not scrape pages, resolve streams, or guarantee that a search result exists. Do not treat an episode webpage as a direct media URL. Do not add private keys, cookies, account tokens, or embedded decryption secrets to the APK. Do not bypass access controls or publisher restrictions. A provider that only supplies a webpage should return no native stream; AnimeWave can still open the HTTPS page in its embedded browser.
 
 ## Current provider coverage
 
