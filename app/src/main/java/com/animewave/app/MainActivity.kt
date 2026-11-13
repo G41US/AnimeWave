@@ -34,7 +34,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -136,7 +135,8 @@ fun AnimeWaveTheme(wide: Boolean, content: @Composable () -> Unit) {
         colorScheme = darkColorScheme(
             primary = Violet, secondary = Pink, background = Ink, surface = Panel,
             onPrimary = Color.White, onBackground = Color.White, onSurface = Color.White,
-        )
+        ),
+        typography = AppTypography,
     ) {
         CompositionLocalProvider(LocalWide provides wide, LocalContentColor provides Color.White, content = content)
     }
@@ -157,10 +157,12 @@ fun Shell(
         // The top bar lives inside the scrolling page (not floating over it) so the TV remote can move
         // Down from the tabs into the content. On Home, HomeContent overlays it on the hero itself.
         val bar: @Composable () -> Unit = { TopBar(tab, tabFocus, update = update, onTab = onTab) }
-        Column(Modifier.fillMaxSize().padding(inner).verticalScroll(scroll).imePadding()) {
+        // Pages run underneath the floating phone dock; the end spacer keeps the last row clear of it.
+        Column(Modifier.fillMaxSize().padding(top = inner.calculateTopPadding()).verticalScroll(scroll).imePadding()) {
             if (tab == "Home") CompositionLocalProvider(LocalTopBar provides bar) { content() }
             else { bar(); content() }
-            Spacer(Modifier.navigationBarsPadding().height(32.dp))
+            if (wide) Spacer(Modifier.navigationBarsPadding().height(32.dp))
+            else Spacer(Modifier.height(inner.calculateBottomPadding() + 12.dp))
         }
     }
 }
@@ -331,8 +333,19 @@ fun AnimeWaveApp() {
             ) {
                 val pick: (Anime) -> Unit = { selected = it }
                 when (tab) {
-                    "Home" -> Column {
-                        Button(onClick = {
+                    "Home" -> HomeContent(
+                        home, saved, heroFocus, onPick = pick,
+                        onWatch = { watch(it.watchLinks.firstOrNull()?.second) },
+                        onToggleSave = { toggleSaved(it.id) },
+                        continueWatching = continueWatching,
+                        onResume = { record ->
+                            val item = MediaItem.Builder().setUri(record.uri)
+                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(record.title).build())
+                                .build()
+                            playing = PlayerLaunch(listOf(item), 0, record.positionMs)
+                        },
+                        // Public-domain native playback test, shown as a Home card instead of a bare button.
+                        onPlayClassic = {
                             val testUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ed/Yasuji_Murata-_Momotaro_in_the_Sky_%281931%29.ogv/Yasuji_Murata-_Momotaro_in_the_Sky_%281931%29.ogv.360p.mp4"
                             val testItem = MediaItem.Builder()
                                 .setUri(testUrl)
@@ -345,20 +358,8 @@ fun AnimeWaveApp() {
                                 )
                                 .build()
                             playing = PlayerLaunch(listOf(testItem), 0)
-                        }) { Text("Test Playback — Momotaro (1931)") }
-                        HomeContent(
-                        home, saved, heroFocus, onPick = pick,
-                        onWatch = { watch(it.watchLinks.firstOrNull()?.second) },
-                        onToggleSave = { toggleSaved(it.id) },
-                        continueWatching = continueWatching,
-                        onResume = { record ->
-                            val item = MediaItem.Builder().setUri(record.uri)
-                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(record.title).build())
-                                .build()
-                            playing = PlayerLaunch(listOf(item), 0, record.positionMs)
                         },
                     )
-                    }
                     "Discover" -> {
                         ScreenTitle("Discover", "The most popular anime in every genre")
                         GenreChips(genre) { genre = it }
