@@ -66,7 +66,7 @@ private val PickTypes = arrayOf(
     "video/*", "application/x-subrip", "text/vtt", "text/x-ssa", "application/octet-stream",
 )
 
-private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L)
+private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L, val requestHeaders: Map<String, String> = emptyMap())
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -257,6 +257,7 @@ fun AnimeWaveApp() {
                 items = nowPlaying.items,
                 startIndex = nowPlaying.startIndex,
                 startPositionMs = nowPlaying.startPositionMs,
+                requestHeaders = nowPlaying.requestHeaders,
                 onExit = { playing = null },
                 onProgress = ::recordPlayback,
             )
@@ -298,7 +299,7 @@ fun AnimeWaveApp() {
                                                 .setTitle(anime.title + " — " + ep.title + " · " + resolved.providerName).build())
                                             .setSubtitleConfigurations(SubtitleManager.configurations(resolved.subtitles))
                                         resolved.mimeType?.let { builder.setMimeType(it) }
-                                        playing = PlayerLaunch(listOf(builder.build()), 0)
+                                        playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
                                     } else if (preferredSource == "listed") {
                                         openLink(context, ep.url)
                                     } else {
