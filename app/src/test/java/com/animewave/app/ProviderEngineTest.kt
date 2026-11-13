@@ -111,6 +111,7 @@ class ProviderEngineTest {
         assertEquals(true, url.startsWith("https://www.google.com/search?q="))
         assertEquals(true, url.contains("site%3Aanimepahe.ru"))
         assertEquals("https://anilist.co", AnimeSourceRegistry.searchUrl("listed", "Frieren", "Episode 2"))
+        assertEquals(true, AnimeSourceRegistry.searchUrl("animepahe", "Frieren").contains("Frieren"))
     }
 
     @Test fun progressIsBounded() {
