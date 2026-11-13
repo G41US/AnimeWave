@@ -346,14 +346,14 @@ fun AnimeWaveApp() {
                         },
                         // Public-domain native playback test, shown as a Home card instead of a bare button.
                         onPlayClassic = {
-                            val testUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+                            val testUrl = "https://media.w3.org/2010/05/sintel/trailer.mp4"
                             val testItem = MediaItem.Builder()
                                 .setUri(testUrl)
                                 .setMimeType("video/mp4")
                                 .setMediaMetadata(
                                     androidx.media3.common.MediaMetadata.Builder()
-                                        .setTitle("MDN Flower Sample — CC0 MP4 Test")
-                                        .setArtist("MDN Web Docs · CC0 sample")
+                                        .setTitle("Sintel Trailer — MP4 Audio Test")
+                                        .setArtist("Blender Foundation · CC BY 3.0")
                                         .build()
                                 )
                                 .build()
