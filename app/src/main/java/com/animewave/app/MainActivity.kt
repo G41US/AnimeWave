@@ -308,11 +308,11 @@ fun AnimeWaveApp() {
                                             playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
                                         }
                                         candidates.size > 1 -> playbackChoices = candidates
-                                        preferredSource == "listed" -> openLink(context, ep.url)
                                         else -> {
-                                            val source = AnimeSourceRegistry.byId(preferredSource)
-                                            toast(context, "Searching " + source.displayName + " for " + anime.title + " — " + ep.title)
-                                            openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
+                                            toast(
+                                                context,
+                                                "No authorized native stream is available for this episode yet. Try another episode or a provider with supported playback."
+                                            )
                                         }
                                     }
                                 }
