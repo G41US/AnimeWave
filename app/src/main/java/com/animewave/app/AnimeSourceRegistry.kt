@@ -1,5 +1,8 @@
 package com.animewave.app
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 /**
  * Display names and home pages for source choices. These are navigation entries, not
  * claims that a provider exposes an API or a direct stream. Native playback is enabled
@@ -32,4 +35,18 @@ object AnimeSourceRegistry {
     )
 
     fun byId(id: String): AnimeSource = sources.firstOrNull { it.id == id } ?: sources.first()
+
+    /**
+     * Search-engine fallback scoped to the selected source host.
+     * This is navigation only, not a provider integration or searchable API.
+     */
+    fun searchUrl(id: String, animeTitle: String, episodeTitle: String): String {
+        val source = byId(id)
+        if (source.kind == AnimeSource.Kind.LISTED_EPISODE) return source.homeUrl
+        val host = runCatching { java.net.URI(source.homeUrl).host }
+            .getOrNull()?.takeIf { it.isNotBlank() } ?: return source.homeUrl
+        val query = "site:" + host + " " + animeTitle + " " + episodeTitle
+        val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
+        return "https://www.google.com/search?q=" + encoded
+    }
 }
