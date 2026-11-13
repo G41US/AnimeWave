@@ -27,13 +27,18 @@ data class Anime(
     /** Official streaming sites (site name to HTTPS url). */
     val watchLinks: List<Pair<String, String>>,
     val streamingEpisodes: List<Episode>,
+    /** AniList status: RELEASING, FINISHED, NOT_YET_RELEASED, ... */
+    val status: String? = null,
+    /** Next episode number and when it airs (epoch seconds), for airing shows. */
+    val nextEpisode: Int? = null,
+    val nextAiringAt: Long? = null,
 )
 
 /** Free public anime database, no API key: https://docs.anilist.co */
 object AniList {
     private const val FIELDS = "id title{romaji english} coverImage{large extraLarge color} bannerImage genres seasonYear " +
         "episodes format averageScore description(asHtml:false) externalLinks{site url type} " +
-        "streamingEpisodes{title thumbnail url site}"
+        "streamingEpisodes{title thumbnail url site} status nextAiringEpisode{episode airingAt}"
 
     private fun page(alias: String, args: String, perPage: Int = 20) =
         "$alias: Page(perPage:$perPage){media(type:ANIME,isAdult:false,$args){$FIELDS}}"
@@ -101,6 +106,7 @@ fun parseResponse(body: String): Map<String, List<Anime>> {
 
 fun parseMedia(m: JSONObject): Anime {
     val title = m.getJSONObject("title")
+    val next = m.optJSONObject("nextAiringEpisode")
     val cover = m.optJSONObject("coverImage")
     val genres = m.optJSONArray("genres")
     return Anime(
@@ -128,5 +134,33 @@ fun parseMedia(m: JSONObject): Anime {
             secure(e.str("url"))
                 ?.let { Episode(e.str("title") ?: "Episode", e.str("thumbnail"), it, e.str("site").orEmpty()) }
         },
+        status = m.str("status"),
+        nextEpisode = next?.int("episode"),
+        nextAiringAt = next?.let { if (it.isNull("airingAt")) null else it.getLong("airingAt") },
     )
+}
+
+/** "Ep 7 in 2d", "Ep 7 in 5h" or "Ep 7 soon" for the next airing episode; null when nothing is scheduled. */
+fun airingLabel(a: Anime, nowSeconds: Long = System.currentTimeMillis() / 1000): String? {
+    val ep = a.nextEpisode ?: return null
+    val at = a.nextAiringAt ?: return null
+    val left = at - nowSeconds
+    if (left <= 0) return null
+    val days = left / 86_400
+    val hours = (left % 86_400) / 3_600
+    val whenText = when {
+        days >= 1 -> if (hours > 0 && days < 3) "${days}d ${hours}h" else "${days}d"
+        hours >= 1 -> "${hours}h"
+        else -> "soon"
+    }
+    return if (whenText == "soon") "Ep $ep soon" else "Ep $ep in $whenText"
+}
+
+/** True when a weekly show's latest episode came out in the last three days. */
+fun hasNewEpisode(a: Anime, nowSeconds: Long = System.currentTimeMillis() / 1000): Boolean {
+    val ep = a.nextEpisode ?: return false
+    val at = a.nextAiringAt ?: return false
+    if (ep <= 1 || a.status != "RELEASING") return false
+    val lastAired = at - 7 * 86_400
+    return nowSeconds - lastAired in 0..(3 * 86_400)
 }
