@@ -7,3 +7,4 @@ app/build/
 *.keystore
 app/src/test/snapshots/
 !signing/animewave-release.jks
+.kotlin/
