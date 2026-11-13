@@ -1233,13 +1233,13 @@ private fun ResumeCard(record: PlaybackRecord, onClick: () -> Unit) {
     }
 }
 
-/** Free public-domain classic that plays natively in AnimeWave's own player. */
+/** CC0 sample clip used to verify native playback in AnimeWave. */
 @Composable
 private fun ClassicCard(onPlay: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.03f else 1f, label = "classic")
     val shape = RoundedCornerShape(20.dp)
-    SectionTitle("Free to watch", caption = "Public domain")
+    SectionTitle("Playback test", caption = "CC0 sample")
     Row(
         Modifier.padding(horizontal = gutter).widthIn(max = 720.dp).fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
@@ -1258,8 +1258,8 @@ private fun ClassicCard(onPlay: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("PLAYS IN ANIMEWAVE", fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, style = jakarta(brush = Brand))
             Spacer(Modifier.height(4.dp))
-            Text("Momotaro in the Sky", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("1931  ·  Yasuji Murata  ·  Wikimedia Commons", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Flower video sample", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("MDN Web Docs  ·  CC0 MP4", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
