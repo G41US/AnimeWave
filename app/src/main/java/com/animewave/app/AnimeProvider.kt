@@ -136,6 +136,7 @@ object ProviderManager {
     private val concurrency = Semaphore(3)
     private val adapters = CopyOnWriteArrayList<AnimeProvider>().apply {
         add(AniListStreamingProvider())
+        add(KitsuEpisodeProvider())
     }
 
     fun register(provider: AnimeProvider) {
