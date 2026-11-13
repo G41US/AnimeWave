@@ -166,4 +166,40 @@ class ProviderEngineTest {
         val record = PlaybackRecord("content://media/1", "Episode 1", 150, 100, 1)
         assertEquals(1f, record.progress)
     }
+    @Test fun providerPlaybackKeepsSafeRequestContextButDropsCredentialsAndMalformedHeaders() = runBlocking {
+        val provider = object : AnimeProvider {
+            override val id = "header-test"
+            override val displayName = "Header Test"
+            override suspend fun searchEpisodes(anime: Anime) = emptyList<ProviderEpisode>()
+            override suspend fun resolve(episode: ProviderEpisode) = ProviderStream(
+                url = "https://media.example/video.m3u8",
+                providerName = displayName,
+                rightsConfirmed = true,
+                requestHeaders = mapOf(
+                    "Referer" to "https://source.example/watch/1",
+                    "Origin" to "https://source.example",
+                    "User-Agent" to "AnimeWave-Test",
+                    "Cookie" to "session=secret",
+                    "Authorization" to "Bearer secret",
+                    "X-Bad" to "value\\r\\nInjected: yes",
+                ),
+            )
+        }
+        ProviderManager.register(provider)
+        try {
+            val episode = ProviderEpisode(provider.id, provider.displayName, 1, "Episode 1", 1, null, "https://source.example/watch/1")
+            val result = ProviderManager.resolve(episode)
+            assertEquals(
+                mapOf(
+                    "Referer" to "https://source.example/watch/1",
+                    "Origin" to "https://source.example",
+                    "User-Agent" to "AnimeWave-Test",
+                ),
+                result?.requestHeaders,
+            )
+        } finally {
+            ProviderManager.unregister(provider.id)
+        }
+    }
+
 }
