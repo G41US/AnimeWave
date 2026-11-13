@@ -624,9 +624,10 @@ fun DetailContent(
     val wide = LocalWide.current
     val screenH = LocalConfiguration.current.screenHeightDp.dp
     val official = anime.watchLinks.firstOrNull()
-    val discoveredEpisodes = providerDiscovery?.groups?.flatMap { it.episodes }
-        ?.map { Episode(it.title, it.thumbnail, it.pageUrl, it.providerName) }
-        ?: anime.streamingEpisodes
+    val discoveredGroups = providerDiscovery?.groups.orEmpty()
+    val discoveredEpisodes = discoveredGroups.flatMap { it.episodes }
+        .map { Episode(it.title, it.thumbnail, it.pageUrl, it.providerName) }
+        .ifEmpty { anime.streamingEpisodes }
     val accent = anime.accent?.let { Color(it) } ?: Panel
 
     val genresLine: @Composable () -> Unit = {
@@ -765,14 +766,14 @@ fun DetailContent(
                     color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 2.dp),
                 )
             }
-            if (providerDiscovery?.groups?.isNotEmpty() == true) {
+            if (discoveredGroups.isNotEmpty()) {
                 // Keep equivalent episode listings grouped. If more than one provider
                 // supplies an episode, let the viewer choose which page to open.
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(providerDiscovery.groups, key = { it.key }) { group ->
+                    items(discoveredGroups, key = { it.key }) { group ->
                         val first = group.episodes.first()
                         val label = if (group.episodes.size > 1) "${group.episodes.size} sources" else first.providerName
                         val cardEpisode = Episode(group.title, first.thumbnail, first.pageUrl, label)
