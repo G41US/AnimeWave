@@ -284,9 +284,13 @@ fun AnimeWaveApp() {
                                 val providerEpisode = providerDiscovery.value?.groups?.flatMap { it.episodes }
                                     ?.firstOrNull { it.pageUrl == ep.url }
                                 scope.launch {
-                                    val resolved = runCatching {
+                                    val resolved = try {
                                         providerEpisode?.let { PlaybackResolver.resolve(it) }
-                                    }.getOrNull()
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        null
+                                    }
                                     if (resolved != null) {
                                         val builder = MediaItem.Builder()
                                             .setUri(resolved.uri.toString())
