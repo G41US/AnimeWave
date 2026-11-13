@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
 import androidx.media3.common.MimeTypes
 
 class ProviderEngineTest {
@@ -70,6 +71,30 @@ class ProviderEngineTest {
             assertEquals("https://media.example/video.m3u8", ProviderManager.resolve(episode("valid"))?.url)
             assertNull(ProviderManager.resolve(episode("insecure")))
             assertNull(ProviderManager.resolve(episode("unsupported")))
+        } finally {
+            ProviderManager.unregister(provider.id)
+        }
+    }
+
+    @Test fun resolverPropagatesCoroutineCancellation() = runBlocking {
+        val provider = object : AnimeProvider {
+            override val id = "cancel-test"
+            override val displayName = "Cancellation Test"
+            override suspend fun searchEpisodes(anime: Anime) = emptyList<ProviderEpisode>()
+            override suspend fun resolve(episode: ProviderEpisode): ProviderStream? {
+                throw CancellationException("test cancellation")
+            }
+        }
+        ProviderManager.register(provider)
+        try {
+            val episode = ProviderEpisode(provider.id, provider.displayName, 1, "Episode 1", 1, null, "https://example.com/ep1")
+            var propagated = false
+            try {
+                ProviderManager.resolve(episode)
+            } catch (_: CancellationException) {
+                propagated = true
+            }
+            assertEquals(true, propagated)
         } finally {
             ProviderManager.unregister(provider.id)
         }
