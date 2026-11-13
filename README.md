@@ -32,3 +32,7 @@ For command line builds, use `gradle assembleDebug` from the project root after 
 - The app only plays your own files or links you're authorized to use; it does not scrape or host anime.
 - Some file managers on Android TV boxes don't include a file picker. Use **Play a stream link** there.
 - AniList limits requests per minute; the app debounces search to stay under it.
+
+## Provider engine
+
+The app now has a provider-adapter contract, bounded episode discovery, episode matching/grouping, an authorized native-playback resolver, subtitle configuration helpers, and local Continue Watching history. AniList is the only built-in episode-listing adapter at present; the remaining named source entries are website shortcuts until supported adapters are added. See [docs/PROVIDER_ENGINE.md](docs/PROVIDER_ENGINE.md) before implementing another adapter.
