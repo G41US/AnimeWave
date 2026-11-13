@@ -691,7 +691,7 @@ fun DetailContent(
             title = { Text("Choose a source") },
             text = {
                 Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
-                    Text("Choose the preferred source for episode links. Sources not yet integrated open their website; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
+                    Text("Choose where episode searches should go. Sources without a built-in adapter open a host-scoped web search; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
                     AnimeSourceRegistry.sources.forEach { source ->
                         TextButton(onClick = {
