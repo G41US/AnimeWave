@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,6 +32,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -613,12 +616,18 @@ fun DetailContent(
     onPlayEpisode: (Episode) -> Unit,
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
+    providerDiscovery: ProviderDiscoveryResult? = null,
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
+    var providerChoices by remember { mutableStateOf<List<ProviderEpisode>?>(null) }
     val selectedSource = AnimeSourceRegistry.byId(selectedSourceId)
     val wide = LocalWide.current
     val screenH = LocalConfiguration.current.screenHeightDp.dp
     val official = anime.watchLinks.firstOrNull()
+    val discoveredGroups = providerDiscovery?.groups.orEmpty()
+    val discoveredEpisodes = discoveredGroups.flatMap { it.episodes }
+        .map { Episode(it.title, it.thumbnail, it.pageUrl, it.providerName) }
+        .ifEmpty { anime.streamingEpisodes }
     val accent = anime.accent?.let { Color(it) } ?: Panel
 
     val genresLine: @Composable () -> Unit = {
@@ -645,6 +654,11 @@ fun DetailContent(
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
             GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
+            GhostButton("Find on ${selectedSource.displayName}", Icons.Filled.Search) {
+                val url = if (selectedSourceId == "listed") "https://anilist.co/anime/${anime.id}"
+                else AnimeSourceRegistry.searchUrl(selectedSourceId, anime.title)
+                onOpen(url)
+            }
         }
     }
     val poster: @Composable (Dp) -> Unit = { w ->
@@ -654,14 +668,35 @@ fun DetailContent(
         }
     }
 
+    providerChoices?.let { choices ->
+        AlertDialog(
+            onDismissRequest = { providerChoices = null },
+            containerColor = Panel,
+            title = { Text("Choose an episode source") },
+            text = {
+                Column {
+                    choices.forEach { choice ->
+                        TextButton(onClick = {
+                            providerChoices = null
+                            onPlayEpisode(Episode(choice.title, choice.thumbnail, choice.pageUrl, choice.providerName))
+                        }) {
+                            Text(choice.providerName, color = Color.White)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { providerChoices = null }) { Text("Cancel") } },
+        )
+    }
+
     if (showSourcePicker) {
         AlertDialog(
             onDismissRequest = { showSourcePicker = false },
             containerColor = Panel,
             title = { Text("Choose a source") },
             text = {
-                Column {
-                    Text("Choose the preferred source for episode links. Sources not yet integrated open their website; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    Text("Choose where episode searches should go. Sources without a built-in adapter open a host-scoped web search; native playback is available only for approved direct streams.", color = Soft, fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
                     AnimeSourceRegistry.sources.forEach { source ->
                         TextButton(onClick = {
@@ -730,15 +765,38 @@ fun DetailContent(
                 }
             }
             SectionTitle("Episodes")
-            if (anime.streamingEpisodes.isEmpty()) {
-                Text("No episode links listed for this title yet.", color = Muted, modifier = Modifier.padding(horizontal = gutter))
-            } else {
-                // AniList's order; each opens the episode on the official site.
+            providerDiscovery?.takeIf { it.providers.isNotEmpty() }?.let { result ->
+                Text(
+                    "Checked " + result.providers.count { it.available } + " provider(s) · " + discoveredEpisodes.size + " episode listing(s)",
+                    color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 2.dp),
+                )
+            }
+            if (discoveredGroups.isNotEmpty()) {
+                // Keep equivalent episode listings grouped. If more than one provider
+                // supplies an episode, let the viewer choose which page to open.
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(anime.streamingEpisodes) { ep ->
+                    items(discoveredGroups, key = { it.key }) { group ->
+                        val first = group.episodes.first()
+                        val label = if (group.episodes.size > 1) "${group.episodes.size} sources" else first.providerName
+                        val displayTitle = group.seasonNumber?.let { "Season $it · ${group.title}" } ?: group.title
+                        val cardEpisode = Episode(displayTitle, first.thumbnail, first.pageUrl, label)
+                        EpisodeCard(cardEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, group.title) != null) {
+                            if (group.episodes.size > 1) providerChoices = group.episodes
+                            else onPlayEpisode(Episode(first.title, first.thumbnail, first.pageUrl, first.providerName))
+                        }
+                    }
+                }
+            } else if (discoveredEpisodes.isEmpty()) {
+                Text("No episode links listed for this title yet.", color = Muted, modifier = Modifier.padding(horizontal = gutter))
+            } else {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    items(discoveredEpisodes) { ep ->
                         EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
                             onPlayEpisode(ep)
                         }
@@ -781,7 +839,7 @@ private fun EpisodeCard(ep: Episode, nativeAvailable: Boolean, onClick: () -> Un
         }
         Spacer(Modifier.height(8.dp))
         Text(ep.title, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPEN OFFICIAL SOURCE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp))
+        Text(if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPEN SOURCE PAGE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -863,6 +921,8 @@ fun LinkDialog(onDismiss: () -> Unit, onPlay: (String) -> Unit) {
 fun HomeContent(
     home: Loaded<Map<String, List<Anime>>>, saved: Set<Int>, heroFocus: FocusRequester,
     onPick: (Anime) -> Unit, onWatch: (Anime) -> Unit, onToggleSave: (Anime) -> Unit,
+    continueWatching: List<PlaybackRecord> = emptyList(),
+    onResume: (PlaybackRecord) -> Unit = {},
 ) {
     val trending = home.value?.get("trending").orEmpty()
     Box {
@@ -873,6 +933,7 @@ fun HomeContent(
     // Rows tuck up into the hero's fade for a layered look.
     Column(Modifier.offset(y = if (LocalWide.current) (-40).dp else (-12).dp)) {
         Top10Row(home.map { it["trending"].orEmpty() }, onPick)
+        ContinueWatchingSection(continueWatching, onResume)
         AnimeRow("Airing This Season", home.map { it["airing"].orEmpty() }, onPick = onPick)
         AnimeRow("Action & Adventure", home.map { it["action"].orEmpty() }, onPick = onPick)
         AnimeRow("All-Time Popular", home.map { it["popular"].orEmpty() }, onPick = onPick)
@@ -881,6 +942,45 @@ fun HomeContent(
             color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 28.dp),
         )
     }
+}
+
+@Composable
+private fun ContinueWatchingSection(records: List<PlaybackRecord>, onResume: (PlaybackRecord) -> Unit) {
+    if (records.isEmpty()) return
+    SectionTitle("Continue Watching")
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = gutter),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(records, key = { it.uri }) { record ->
+            Column(
+                Modifier.width(if (LocalWide.current) 280.dp else 230.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Panel)
+                    .clickable { onResume(record) }
+                    .padding(14.dp),
+            ) {
+                Text(record.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { record.progress },
+                    modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                    color = Violet, trackColor = Color.White.copy(alpha = .12f),
+                )
+                Spacer(Modifier.height(7.dp))
+                Text(formatPlaybackTime(record.positionMs) + " / " + formatPlaybackTime(record.durationMs), color = Muted, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+private fun formatPlaybackTime(milliseconds: Long): String {
+    val seconds = (milliseconds.coerceAtLeast(0) / 1000).toInt()
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val remainder = seconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, remainder)
+    else "%d:%02d".format(minutes, remainder)
 }
 
 // ---------- Settings & updates ----------
