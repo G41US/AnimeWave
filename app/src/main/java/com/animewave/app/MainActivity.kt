@@ -346,14 +346,14 @@ fun AnimeWaveApp() {
                         },
                         // Public-domain native playback test, shown as a Home card instead of a bare button.
                         onPlayClassic = {
-                            val testUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ed/Yasuji_Murata-_Momotaro_in_the_Sky_%281931%29.ogv/Yasuji_Murata-_Momotaro_in_the_Sky_%281931%29.ogv.360p.mp4"
+                            val testUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
                             val testItem = MediaItem.Builder()
                                 .setUri(testUrl)
                                 .setMimeType("video/mp4")
                                 .setMediaMetadata(
                                     androidx.media3.common.MediaMetadata.Builder()
-                                        .setTitle("Momotaro in the Sky (1931) — Public Domain Test")
-                                        .setArtist("Yasuji Murata · Wikimedia Commons")
+                                        .setTitle("MDN Flower Sample — CC0 MP4 Test")
+                                        .setArtist("MDN Web Docs · CC0 sample")
                                         .build()
                                 )
                                 .build()
