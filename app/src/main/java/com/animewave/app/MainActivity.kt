@@ -175,6 +175,7 @@ fun AnimeWaveApp() {
     var selected by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<LocalEpisode<Uri>>>(emptyList()) }
     var playing by remember { mutableStateOf<PlayerLaunch?>(null) }
+    var playbackChoices by remember { mutableStateOf<List<ResolvedPlaybackCandidate>?>(null) }
     var askLink by remember { mutableStateOf(false) }
     var showIntro by rememberSaveable { mutableStateOf(true) }
     val scroll = rememberScrollState()
@@ -282,30 +283,36 @@ fun AnimeWaveApp() {
                                     .build()
                                 playing = PlayerLaunch(listOf(item), 0)
                             } else {
-                                val providerEpisode = providerDiscovery.value?.groups?.flatMap { it.episodes }
-                                    ?.firstOrNull { it.pageUrl == ep.url }
+                                val group = providerDiscovery.value?.groups?.firstOrNull { candidateGroup ->
+                                    candidateGroup.episodes.any { it.pageUrl == ep.url }
+                                }
                                 scope.launch {
-                                    val resolved = try {
-                                        providerEpisode?.let { PlaybackResolver.resolve(it) }
+                                    val candidates = try {
+                                        group?.let { PlaybackCandidateEngine.resolve(it) }.orEmpty()
                                     } catch (cancelled: CancellationException) {
                                         throw cancelled
                                     } catch (_: Exception) {
-                                        null
+                                        emptyList()
                                     }
-                                    if (resolved != null) {
-                                        val builder = MediaItem.Builder()
-                                            .setUri(resolved.uri.toString())
-                                            .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
-                                                .setTitle(anime.title + " — " + ep.title + " · " + resolved.providerName).build())
-                                            .setSubtitleConfigurations(SubtitleManager.configurations(resolved.subtitles))
-                                        resolved.mimeType?.let { builder.setMimeType(it) }
-                                        playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
-                                    } else if (preferredSource == "listed") {
-                                        openLink(context, ep.url)
-                                    } else {
-                                        val source = AnimeSourceRegistry.byId(preferredSource)
-                                        toast(context, "Searching " + source.displayName + " for " + anime.title + " — " + ep.title)
-                                        openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
+                                    when {
+                                        candidates.size == 1 -> {
+                                            val candidate = candidates.first()
+                                            val resolved = candidate.stream
+                                            val builder = MediaItem.Builder()
+                                                .setUri(resolved.url)
+                                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
+                                                    .setTitle(anime.title + " — " + ep.title + " · " + resolved.providerName).build())
+                                                .setSubtitleConfigurations(SubtitleManager.configurations(resolved.subtitles))
+                                            resolved.mimeType?.let { builder.setMimeType(it) }
+                                            playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
+                                        }
+                                        candidates.size > 1 -> playbackChoices = candidates
+                                        preferredSource == "listed" -> openLink(context, ep.url)
+                                        else -> {
+                                            val source = AnimeSourceRegistry.byId(preferredSource)
+                                            toast(context, "Searching " + source.displayName + " for " + anime.title + " — " + ep.title)
+                                            openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
+                                        }
                                     }
                                 }
                             }
@@ -395,6 +402,23 @@ fun AnimeWaveApp() {
         // Title screen on top while the catalog loads underneath.
         AnimatedVisibility(showIntro, exit = fadeOut(tween(450))) {
             IntroScreen(ready = { home.value != null || home.failed }) { showIntro = false }
+        }
+        playbackChoices?.let { candidates ->
+            PlaybackSourceDialog(
+                candidates = candidates,
+                onDismiss = { playbackChoices = null },
+                onSelect = { candidate ->
+                    playbackChoices = null
+                    val stream = candidate.stream
+                    val builder = MediaItem.Builder()
+                        .setUri(stream.url)
+                        .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
+                            .setTitle((selected?.title ?: "Anime") + " — " + candidate.episode.title + " · " + stream.providerName).build())
+                        .setSubtitleConfigurations(SubtitleManager.configurations(stream.subtitles))
+                    stream.mimeType?.let { builder.setMimeType(it) }
+                    playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = stream.requestHeaders)
+                },
+            )
         }
       }
     }
