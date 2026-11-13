@@ -80,14 +80,15 @@ class EmbeddedPlayerActivity : Activity() {
             loadsImagesAutomatically = true
             javaScriptCanOpenWindowsAutomatically = false
             setSupportMultipleWindows(false)
+            allowFileAccess = false
+            allowContentAccess = false
             userAgentString = userAgentString
         }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val scheme = request.url.scheme?.lowercase()
-                // Keep normal web navigation in the embedded screen, but block non-web schemes
-                // from launching arbitrary external apps.
-                return scheme != "https" && scheme != "http"
+                // Keep HTTPS navigation in the embedded screen. Block HTTP downgrade and non-web schemes.
+                return scheme != "https"
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
