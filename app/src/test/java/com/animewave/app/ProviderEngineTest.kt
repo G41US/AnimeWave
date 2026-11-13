@@ -114,6 +114,14 @@ class ProviderEngineTest {
         assertEquals(true, AnimeSourceRegistry.searchUrl("animepahe", "Frieren").contains("Frieren"))
     }
 
+    @Test fun subtitleUrlsMustUseSafeSchemesAndValidAuthorities() {
+        assertEquals(true, SubtitleManager.isAllowedUrl("https://example.com/captions.vtt"))
+        assertEquals(true, SubtitleManager.isAllowedUrl("content://media/captions/1"))
+        assertEquals(false, SubtitleManager.isAllowedUrl("https:captions.vtt"))
+        assertEquals(false, SubtitleManager.isAllowedUrl("file:///sdcard/captions.vtt"))
+        assertEquals(false, SubtitleManager.isAllowedUrl("https://user:pass@example.com/captions.vtt"))
+    }
+
     @Test fun progressIsBounded() {
         val record = PlaybackRecord("content://media/1", "Episode 1", 150, 100, 1)
         assertEquals(1f, record.progress)
