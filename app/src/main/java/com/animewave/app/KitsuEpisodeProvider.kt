@@ -22,9 +22,13 @@ class KitsuEpisodeProvider : AnimeProvider {
         for (i in 0 until matches.length()) {
             val item = matches.optJSONObject(i) ?: continue
             val attrs = item.optJSONObject("attributes") ?: continue
-            val titles = listOf(attrs.optString("canonicalTitle"), attrs.optJSONObject("titles")?.optString("en"),
-                attrs.optJSONObject("titles")?.optString("en_jp"), attrs.optJSONObject("titles")?.optString("ja_jp"))
-                .filter { it.isNotBlank() && it != "null" }
+            val titleObject = attrs.optJSONObject("titles")
+            val titles = listOf(
+                attrs.optString("canonicalTitle").orEmpty(),
+                titleObject?.optString("en").orEmpty(),
+                titleObject?.optString("en_jp").orEmpty(),
+                titleObject?.optString("ja_jp").orEmpty(),
+            ).filter { it.isNotBlank() && it != "null" }
             val score = titles.maxOfOrNull { title ->
                 when {
                     title.trim().equals(target, true) -> 3
