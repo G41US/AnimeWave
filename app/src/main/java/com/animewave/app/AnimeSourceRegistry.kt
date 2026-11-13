@@ -40,12 +40,12 @@ object AnimeSourceRegistry {
      * Search-engine fallback scoped to the selected source host.
      * This is navigation only, not a provider integration or searchable API.
      */
-    fun searchUrl(id: String, animeTitle: String, episodeTitle: String): String {
+    fun searchUrl(id: String, animeTitle: String, episodeTitle: String = ""): String {
         val source = byId(id)
         if (source.kind == AnimeSource.Kind.LISTED_EPISODE) return source.homeUrl
         val host = runCatching { java.net.URI(source.homeUrl).host }
             .getOrNull()?.takeIf { it.isNotBlank() } ?: return source.homeUrl
-        val query = "site:" + host + " " + animeTitle + " " + episodeTitle
+        val query = (listOf("site:" + host, animeTitle, episodeTitle).filter { it.isNotBlank() }).joinToString(" ")
         val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
         return "https://www.google.com/search?q=" + encoded
     }
