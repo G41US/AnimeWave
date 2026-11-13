@@ -303,8 +303,8 @@ fun AnimeWaveApp() {
                                         openLink(context, ep.url)
                                     } else {
                                         val source = AnimeSourceRegistry.byId(preferredSource)
-                                        toast(context, source.displayName + " is a website shortcut; native episode playback needs a supported provider adapter.")
-                                        openLink(context, source.homeUrl)
+                                        toast(context, "Searching " + source.displayName + " for " + anime.title + " — " + ep.title)
+                                        openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
                                     }
                                 }
                             }
