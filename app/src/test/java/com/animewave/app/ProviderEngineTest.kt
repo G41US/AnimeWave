@@ -132,6 +132,14 @@ class ProviderEngineTest {
         }
     }
 
+    @Test fun subtitleConfigurationRejectsUnrecognizedMimeTypes() {
+        val tracks = listOf(
+            ProviderSubtitle("https://example.com/captions.vtt", mimeType = MimeTypes.TEXT_VTT),
+            ProviderSubtitle("https://example.com/payload.js", mimeType = "application/javascript"),
+        )
+        assertEquals(1, SubtitleManager.configurations(tracks).size)
+    }
+
     @Test fun subtitleExtensionsMapToMedia3MimeTypes() {
         assertEquals(MimeTypes.TEXT_VTT, SubtitleManager.mimeType("https://example.com/captions.vtt"))
         assertEquals(MimeTypes.APPLICATION_SUBRIP, SubtitleManager.mimeType("https://example.com/captions.srt"))
