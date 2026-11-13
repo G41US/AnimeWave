@@ -165,10 +165,23 @@ object ProviderManager {
 
     suspend fun resolve(episode: ProviderEpisode): ProviderStream? {
         val provider = adapters.firstOrNull { it.id == episode.providerId } ?: return null
-        val stream = withContext(Dispatchers.IO) { provider.resolve(episode) } ?: return null
-        val mimeAllowed = stream.mimeType == null || stream.mimeType in setOf(
-            "application/x-mpegURL", "application/vnd.apple.mpegurl", "application/dash+xml", "video/mp4",
+        val stream = try {
+            withTimeoutOrNull(TIMEOUT_MS) {
+                withContext(Dispatchers.IO) { provider.resolve(episode) }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        } ?: return null
+        val allowedMimeTypes = setOf(
+            "application/x-mpegurl",
+            "application/vnd.apple.mpegurl",
+            "application/dash+xml",
+            "video/mp4",
         )
+        val normalizedMime = stream.mimeType?.substringBefore(';')?.trim()?.lowercase()
+        val mimeAllowed = normalizedMime == null || normalizedMime in allowedMimeTypes
         return stream.takeIf { it.rightsConfirmed && safeHttps(it.url) && mimeAllowed }
     }
 
