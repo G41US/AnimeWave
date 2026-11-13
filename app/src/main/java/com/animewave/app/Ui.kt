@@ -616,6 +616,7 @@ fun DetailContent(
     providerDiscovery: ProviderDiscoveryResult? = null,
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
+    var providerChoices by remember { mutableStateOf<List<ProviderEpisode>?>(null) }
     val selectedSource = AnimeSourceRegistry.byId(selectedSourceId)
     val wide = LocalWide.current
     val screenH = LocalConfiguration.current.screenHeightDp.dp
@@ -656,6 +657,27 @@ fun DetailContent(
         Box(Modifier.width(w).aspectRatio(2f / 3f).shadow(24.dp, shape).clip(shape).background(accent)) {
             Art(anime.coverXL, Modifier.fillMaxSize(), anime.title)
         }
+    }
+
+    providerChoices?.let { choices ->
+        AlertDialog(
+            onDismissRequest = { providerChoices = null },
+            containerColor = Panel,
+            title = { Text("Choose an episode source") },
+            text = {
+                Column {
+                    choices.forEach { choice ->
+                        TextButton(onClick = {
+                            providerChoices = null
+                            onPlayEpisode(Episode(choice.title, choice.thumbnail, choice.pageUrl, choice.providerName))
+                        }) {
+                            Text(choice.providerName, color = Color.White)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { providerChoices = null }) { Text("Cancel") } },
+        )
     }
 
     if (showSourcePicker) {
@@ -740,10 +762,26 @@ fun DetailContent(
                     color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 2.dp),
                 )
             }
-            if (discoveredEpisodes.isEmpty()) {
+            if (providerDiscovery?.groups?.isNotEmpty() == true) {
+                // Keep equivalent episode listings grouped. If more than one provider
+                // supplies an episode, let the viewer choose which page to open.
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    items(providerDiscovery.groups, key = { it.key }) { group ->
+                        val first = group.episodes.first()
+                        val label = if (group.episodes.size > 1) "${group.episodes.size} sources" else first.providerName
+                        val cardEpisode = Episode(group.title, first.thumbnail, first.pageUrl, label)
+                        EpisodeCard(cardEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, group.title) != null) {
+                            if (group.episodes.size > 1) providerChoices = group.episodes
+                            else onPlayEpisode(Episode(first.title, first.thumbnail, first.pageUrl, first.providerName))
+                        }
+                    }
+                }
+            } else if (discoveredEpisodes.isEmpty()) {
                 Text("No episode links listed for this title yet.", color = Muted, modifier = Modifier.padding(horizontal = gutter))
             } else {
-                // AniList's order; each opens the episode on the official site.
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
