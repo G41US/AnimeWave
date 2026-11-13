@@ -781,7 +781,8 @@ fun DetailContent(
                     items(discoveredGroups, key = { it.key }) { group ->
                         val first = group.episodes.first()
                         val label = if (group.episodes.size > 1) "${group.episodes.size} sources" else first.providerName
-                        val cardEpisode = Episode(group.title, first.thumbnail, first.pageUrl, label)
+                        val displayTitle = group.seasonNumber?.let { "Season $it · ${group.title}" } ?: group.title
+                        val cardEpisode = Episode(displayTitle, first.thumbnail, first.pageUrl, label)
                         EpisodeCard(cardEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, group.title) != null) {
                             if (group.episodes.size > 1) providerChoices = group.episodes
                             else onPlayEpisode(Episode(first.title, first.thumbnail, first.pageUrl, first.providerName))
