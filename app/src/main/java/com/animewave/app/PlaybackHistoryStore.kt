@@ -11,6 +11,10 @@ data class PlaybackRecord(
     val positionMs: Long,
     val durationMs: Long,
     val updatedAt: Long,
+    /** Poster or thumbnail shown on the Continue Watching card. */
+    val artwork: String? = null,
+    /** Episode page URL this playback belongs to, used to show progress in episode lists. */
+    val key: String? = null,
 ) {
     val progress: Float
         get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
@@ -32,12 +36,17 @@ object PlaybackHistoryStore {
                 val title = item.optString("title")
                 if (uri.isBlank() || title.isBlank()) return@mapNotNull null
                 PlaybackRecord(uri, title, item.optLong("positionMs").coerceAtLeast(0),
-                    item.optLong("durationMs").coerceAtLeast(0), item.optLong("updatedAt"))
+                    item.optLong("durationMs").coerceAtLeast(0), item.optLong("updatedAt"),
+                    item.optString("artwork").takeIf { it.startsWith("https://") },
+                    item.optString("key").takeIf { it.isNotBlank() })
             }.sortedByDescending { it.updatedAt }
         }.getOrDefault(emptyList())
     }
 
-    fun record(context: Context, uriValue: String, title: String, positionMs: Long, durationMs: Long) {
+    fun record(
+        context: Context, uriValue: String, title: String, positionMs: Long, durationMs: Long,
+        artwork: String? = null, key: String? = null,
+    ) {
         val uri = runCatching { Uri.parse(uriValue) }.getOrNull() ?: return
         val safeUri = when (uri.scheme?.lowercase()) {
             "https" -> !uri.host.isNullOrBlank() && uri.userInfo == null
@@ -51,7 +60,8 @@ object PlaybackHistoryStore {
             return
         }
         records.add(0, PlaybackRecord(uriValue, title.take(180), positionMs.coerceAtLeast(0),
-            durationMs.coerceAtLeast(0), System.currentTimeMillis()))
+            durationMs.coerceAtLeast(0), System.currentTimeMillis(),
+            artwork?.takeIf { it.startsWith("https://") }, key?.take(500)))
         save(context, records.take(MAX_RECORDS))
     }
 
@@ -65,7 +75,8 @@ object PlaybackHistoryStore {
         records.forEach { record ->
             array.put(JSONObject().put("uri", record.uri).put("title", record.title)
                 .put("positionMs", record.positionMs).put("durationMs", record.durationMs)
-                .put("updatedAt", record.updatedAt))
+                .put("updatedAt", record.updatedAt)
+                .apply { record.artwork?.let { put("artwork", it) }; record.key?.let { put("key", it) } })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, array.toString()).apply()
     }

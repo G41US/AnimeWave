@@ -1,7 +1,12 @@
 package com.animewave.app
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.automirrored.filled.List
@@ -49,10 +54,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -78,6 +85,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -85,6 +93,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -104,6 +113,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import java.io.File
 import kotlinx.coroutines.delay
 
@@ -113,12 +123,12 @@ val Violet = Color(0xFF9B6DFF)
 val Pink = Color(0xFFFF5FA2)
 val Muted = Color(0xFF9EA1B3)
 val Gold = Color(0xFFFFC94D)
-private val Soft = Color(0xFFDADBE5)
-private val Brand = Brush.linearGradient(listOf(Violet, Pink))
+internal val Soft = Color(0xFFDADBE5)
+internal val Brand = Brush.linearGradient(listOf(Violet, Pink))
 
 /** Frosted surfaces: a faint white fill with a hairline edge reads as glass on the dark canvas. */
-private val Glass = Color.White.copy(alpha = .09f)
-private val Hairline = Color.White.copy(alpha = .12f)
+internal val Glass = Color.White.copy(alpha = .09f)
+internal val Hairline = Color.White.copy(alpha = .12f)
 
 /** Plus Jakarta Sans (SIL Open Font License, see licenses/). Black maps to ExtraBold, its heaviest cut. */
 val Jakarta = FontFamily(
@@ -143,7 +153,7 @@ val AppTypography: Typography = Typography().let { t ->
 }
 
 /** Base style for texts that need a brush, stroke or shadow; keeps the app font. */
-private fun jakarta(
+internal fun jakarta(
     brush: Brush? = null, shadow: Shadow? = null,
     drawStyle: androidx.compose.ui.graphics.drawscope.DrawStyle? = null,
 ) = TextStyle(fontFamily = Jakarta, brush = brush, shadow = shadow, drawStyle = drawStyle)
@@ -165,9 +175,9 @@ val Genres = listOf(
     "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Mystery", "Horror",
 )
 
-private val gutter: Dp @Composable get() = if (LocalWide.current) 48.dp else 20.dp
+internal val gutter: Dp @Composable get() = if (LocalWide.current) 48.dp else 20.dp
 
-private fun scoreText(score: Int) = "${score / 10}.${score % 10}"
+internal fun scoreText(score: Int) = "${score / 10}.${score % 10}"
 
 private fun meta(a: Anime) = listOfNotNull(
     a.year?.toString(),
@@ -181,10 +191,15 @@ fun Art(url: String?, modifier: Modifier, description: String? = null) {
     if (override != null) {
         Image(override, description, modifier, contentScale = ContentScale.Crop)
     } else {
-        AsyncImage(
-            model = url,
-            contentDescription = description, contentScale = ContentScale.Crop, modifier = modifier,
-        )
+        var loading by remember(url) { mutableStateOf(url != null) }
+        Box(modifier) {
+            if (loading) Box(Modifier.fillMaxSize().shimmer(RoundedCornerShape(0.dp)))
+            AsyncImage(
+                model = url, contentDescription = description, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onState = { loading = it is AsyncImagePainter.State.Loading },
+            )
+        }
     }
 }
 
@@ -217,6 +232,31 @@ fun TopBar(tab: String, tabFocus: FocusRequester, update: Boolean, onTab: (Strin
             if (wide) Tabs.forEach { t -> TopTab(t, t == tab, if (t == tab) tabFocus else null) { onTab(t) } }
             if (update) UpdatePill { onTab("Settings") }
             IconTab(Icons.Filled.Settings, "Settings", tab == "Settings", if (tab == "Settings") tabFocus else null) { onTab("Settings") }
+        }
+    }
+}
+
+/** Phone-only bar that slides in, solid and frosted, once the page scrolls past its own header. */
+@Composable
+fun StickyBar(visible: Boolean, update: Boolean, settingsActive: Boolean, onTab: (String) -> Unit) {
+    AnimatedVisibility(
+        visible,
+        enter = fadeIn(tween(220)) + slideInVertically(tween(260)) { -it / 2 },
+        exit = fadeOut(tween(180)) + slideOutVertically(tween(220)) { -it / 2 },
+    ) {
+        Column(Modifier.fillMaxWidth().background(Color(0xF20A0B12))) {
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = gutter, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Logo(17)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (update) UpdatePill { onTab("Settings") }
+                    IconTab(Icons.Filled.Settings, "Settings", settingsActive, null) { onTab("Settings") }
+                }
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
         }
     }
 }
@@ -376,7 +416,7 @@ fun ActionIcon(icon: ImageVector, label: String, modifier: Modifier = Modifier, 
         modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.hasFocus }
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .tappable(onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -417,10 +457,14 @@ private fun metaParts(a: Anime) = listOfNotNull(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MetaTags(anime: Anime) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun MetaTags(anime: Anime, center: Boolean = false) {
+    FlowRow(
+        horizontalArrangement = if (center) Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         anime.score?.let { MetaTag(scoreText(it), Icons.Filled.Star) }
         metaParts(anime).forEach { MetaTag(it) }
+        airingLabel(anime)?.let { MetaTag(it, Icons.Filled.DateRange, tint = vivid(anime.accent)) }
     }
 }
 
@@ -521,14 +565,15 @@ fun Hero(
 
     if (wide) {
         // TV: atmospheric banner behind, crisp key art on the right, story and actions on the left.
-        Box(Modifier.fillMaxWidth().height(screenH * 0.94f)) {
-            Crossfade(anime, animationSpec = tween(900), label = "heroBg") { a -> Art(a.banner ?: a.coverXL, Modifier.fillMaxSize()) }
-            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink, .42f to Ink.copy(alpha = .85f), .72f to Ink.copy(alpha = .45f), 1f to Ink.copy(alpha = .6f))))
+        Box(Modifier.fillMaxWidth().height(screenH * 0.94f).clipToBounds()) {
+            Crossfade(anime, animationSpec = tween(900), label = "heroBg") { a -> Art(a.banner ?: a.coverXL, Modifier.fillMaxSize().kenBurns().atmosphere(16.dp)) }
+            if (!canBlur) Box(Modifier.fillMaxSize().background(Ink.copy(alpha = .25f)))
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink, .42f to Ink.copy(alpha = .85f), .72f to Ink.copy(alpha = .4f), 1f to Ink.copy(alpha = .55f))))
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Ink.copy(alpha = .7f), .25f to Color.Transparent, .7f to Color.Transparent, 1f to Ink)))
-            val glow = anime.accent?.let { Color(it) } ?: Violet
+            val glow = vivid(anime.accent)
             Box(
                 Modifier.align(Alignment.CenterEnd).offset(x = 52.dp, y = 20.dp).size(440.dp)
-                    .background(Brush.radialGradient(listOf(glow.copy(alpha = .38f), Color.Transparent)))
+                    .background(Brush.radialGradient(listOf(glow.copy(alpha = .42f), Color.Transparent)))
             )
             Crossfade(anime, animationSpec = tween(900), label = "heroArt", modifier = Modifier.align(Alignment.CenterEnd).padding(end = gutter + 28.dp, top = 56.dp)) { a ->
                 val shape = RoundedCornerShape(20.dp)
@@ -575,9 +620,14 @@ fun Hero(
     }
 
     // Phone: full-bleed key art with a centred title block and a Play button flanked by actions.
-    Box(Modifier.fillMaxWidth().height((screenH * 0.78f).coerceIn(520.dp, 700.dp))) {
-        Crossfade(anime, animationSpec = tween(900), label = "hero") { a -> Art(a.coverXL ?: a.banner, Modifier.fillMaxSize()) }
+    Box(Modifier.fillMaxWidth().height((screenH * 0.78f).coerceIn(520.dp, 700.dp)).clipToBounds()) {
+        Crossfade(anime, animationSpec = tween(900), label = "hero") { a -> Art(a.coverXL ?: a.banner, Modifier.fillMaxSize().kenBurns()) }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Ink.copy(alpha = .7f), .18f to Color.Transparent, .48f to Color.Transparent, .78f to Ink.copy(alpha = .88f), 1f to Ink)))
+        // Each title's own colour glows softly behind the title block.
+        Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(320.dp).offset(y = 110.dp)
+                .background(Brush.radialGradient(listOf(vivid(anime.accent).copy(alpha = .30f), Color.Transparent)))
+        )
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = gutter, end = gutter, bottom = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -612,17 +662,21 @@ fun Hero(
 @Composable
 fun HeroPlaceholder(failed: Boolean, onRetry: () -> Unit) {
     val screenH = LocalConfiguration.current.screenHeightDp.dp
+    if (!failed) {
+        HeroSkeleton(if (LocalWide.current) screenH * 0.94f else (screenH * 0.78f).coerceIn(520.dp, 700.dp))
+        return
+    }
     Box(
         Modifier.fillMaxWidth().height(screenH * 0.6f)
             .background(Brush.verticalGradient(listOf(Violet.copy(alpha = .25f), Ink))),
         contentAlignment = Alignment.Center,
     ) {
-        if (failed) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Couldn't reach the anime catalog.", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Check your internet connection.", color = Muted)
             Spacer(Modifier.height(14.dp))
             PrimaryButton("Try again", Icons.Filled.Refresh, onClick = onRetry)
-        } else Text("Loading the latest anime…", color = Muted, fontSize = 16.sp)
+        }
     }
 }
 
@@ -633,14 +687,27 @@ private fun Poster(anime: Anime, focused: Boolean, modifier: Modifier, showScore
     val shape = RoundedCornerShape(14.dp)
     Box(
         modifier.aspectRatio(2f / 3f)
-            .then(if (focused) Modifier.shadow(26.dp, shape, ambientColor = Violet, spotColor = Violet) else Modifier)
+            .then(if (focused) Modifier.shadow(26.dp, shape, ambientColor = vivid(anime.accent), spotColor = vivid(anime.accent)) else Modifier)
             .clip(shape)
             .background(anime.accent?.let { Color(it).copy(alpha = .6f) } ?: Panel)
     ) {
         Art(anime.cover, Modifier.fillMaxSize(), anime.title)
         // Soft inner vignette so bright covers still sit in the dark UI.
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.7f to Color.Transparent, 1f to Ink.copy(alpha = .35f))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.62f to Color.Transparent, 1f to Ink.copy(alpha = .55f))))
         if (showScore) anime.score?.let { ScoreBadge(it, Modifier.align(Alignment.TopEnd).padding(7.dp)) }
+        if (hasNewEpisode(anime)) {
+            Text(
+                "NEW EP", fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = Color.White,
+                modifier = Modifier.align(Alignment.TopStart).padding(7.dp).background(Brand, RoundedCornerShape(50)).padding(horizontal = 7.dp, vertical = 3.dp),
+            )
+        }
+        airingLabel(anime)?.let { label ->
+            Text(
+                label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1,
+                modifier = Modifier.align(Alignment.BottomStart).padding(7.dp)
+                    .background(Ink.copy(alpha = .72f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 3.dp),
+            )
+        }
         Box(Modifier.fillMaxSize().border(if (focused) 3.dp else 1.dp, if (focused) Color.White else Hairline, shape))
     }
 }
@@ -653,7 +720,7 @@ fun PosterCard(anime: Anime, width: Dp, onClick: () -> Unit) {
         Modifier.width(width)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.hasFocus }
-            .clickable(onClick = onClick)
+            .tappable(onClick)
     ) {
         Poster(anime, focused, Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
@@ -674,7 +741,7 @@ private fun RankedCard(rank: Int, anime: Anime, onClick: () -> Unit) {
     Row(
         Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.hasFocus }
-            .clickable(onClick = onClick),
+            .tappable(onClick),
         verticalAlignment = Alignment.Bottom,
     ) {
         Text(
@@ -697,16 +764,24 @@ data class Loaded<T>(val value: T?, val failed: Boolean, val retry: () -> Unit)
 fun <T, R> Loaded<T>.map(f: (T) -> R) = Loaded(value?.let(f), failed, retry)
 
 @Composable
-private fun LoadState(loaded: Loaded<List<Anime>>, empty: String, content: @Composable (List<Anime>) -> Unit) {
+private fun LoadState(
+    loaded: Loaded<List<Anime>>, empty: String,
+    skeleton: @Composable () -> Unit = { RowSkeleton(if (LocalWide.current) 150.dp else 118.dp) },
+    content: @Composable (List<Anime>) -> Unit,
+) {
     val list = loaded.value
-    val note = Modifier.padding(horizontal = gutter, vertical = 8.dp)
     when {
-        loaded.failed -> Row(note, verticalAlignment = Alignment.CenterVertically) {
-            Text("Couldn't load. Check your connection.", color = Muted)
+        loaded.failed -> Row(
+            Modifier.padding(horizontal = gutter, vertical = 6.dp).widthIn(max = 620.dp).fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)).background(Glass).border(1.dp, Hairline, RoundedCornerShape(16.dp))
+                .padding(start = 18.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Couldn't load. Check your connection.", color = Soft, fontSize = 14.sp, modifier = Modifier.weight(1f))
             TextButton(onClick = loaded.retry) { Text("Retry", color = Violet, fontWeight = FontWeight.Bold) }
         }
-        list == null -> Text("Loading…", color = Muted, modifier = note)
-        list.isEmpty() -> Text(empty, color = Muted, fontSize = 15.sp, modifier = note)
+        list == null -> skeleton()
+        list.isEmpty() -> EmptyNote(empty.substringBefore(". ").removeSuffix("."), empty.substringAfter(". ", "").ifBlank { "Try something else." })
         else -> content(list.distinctBy { it.id })
     }
 }
@@ -727,7 +802,7 @@ fun AnimeRow(title: String, loaded: Loaded<List<Anime>>, empty: String = "Nothin
 @Composable
 fun Top10Row(loaded: Loaded<List<Anime>>, onPick: (Anime) -> Unit) {
     SectionTitle("Top 10 Today")
-    LoadState(loaded, "Nothing found.") { list ->
+    LoadState(loaded, "Nothing found.", skeleton = { RowSkeleton(if (LocalWide.current) 150.dp else 116.dp) }) { list ->
         LazyRow(
             contentPadding = PaddingValues(start = gutter - 12.dp, end = gutter, top = 10.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(if (LocalWide.current) 12.dp else 8.dp),
@@ -740,7 +815,7 @@ fun Top10Row(loaded: Loaded<List<Anime>>, onPick: (Anime) -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AnimeGrid(loaded: Loaded<List<Anime>>, empty: String = "Nothing found.", onPick: (Anime) -> Unit) {
-    LoadState(loaded, empty) { list ->
+    LoadState(loaded, empty, skeleton = { GridSkeleton() }) { list ->
         BoxWithConstraints(Modifier.padding(horizontal = gutter, vertical = 10.dp)) {
             val gap = if (LocalWide.current) 20.dp else 12.dp
             val cols = maxOf(3, ((maxWidth + gap) / ((if (LocalWide.current) 130.dp else 110.dp) + gap)).toInt())
@@ -748,6 +823,122 @@ fun AnimeGrid(loaded: Loaded<List<Anime>>, empty: String = "Nothing found.", onP
             FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(22.dp)) {
                 list.forEach { a -> PosterCard(a, w) { onPick(a) } }
             }
+        }
+    }
+}
+
+/** Search with nothing typed yet: recent searches and what's trending right now. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SearchSuggestions(
+    recent: List<String>, trending: List<Anime>,
+    onRecent: (String) -> Unit, onClearRecent: () -> Unit, onPick: (Anime) -> Unit,
+) {
+    if (recent.isNotEmpty()) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = gutter, end = gutter - 8.dp, top = 22.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Recent searches", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+            TextButton(onClick = onClearRecent) { Text("Clear", color = Muted, fontWeight = FontWeight.SemiBold) }
+        }
+        FlowRow(
+            Modifier.padding(horizontal = gutter),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { recent.forEach { q -> Chip(q, false) { onRecent(q) } } }
+    }
+    if (trending.isNotEmpty()) {
+        SectionTitle("Trending now")
+        Column(Modifier.padding(horizontal = gutter - 8.dp).widthIn(max = 760.dp)) {
+            trending.forEachIndexed { i, a -> TrendingRow(i + 1, a) { onPick(a) } }
+        }
+    } else if (recent.isEmpty()) {
+        EmptyNote("Search every anime on AniList", "Type a title in English, Japanese or romaji.")
+    }
+}
+
+@Composable
+private fun TrendingRow(rank: Int, anime: Anime, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        Modifier.fillMaxWidth()
+            .onFocusChanged { focused = it.hasFocus }
+            .clip(shape)
+            .background(if (focused) Color.White.copy(alpha = .1f) else Color.Transparent)
+            .border(2.dp, if (focused) Color.White else Color.Transparent, shape)
+            .tappable(onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "$rank", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width(34.dp),
+            style = jakarta(brush = if (rank <= 3) Brand else Brush.linearGradient(listOf(Muted, Muted))),
+        )
+        Box(Modifier.width(46.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(Panel)) {
+            Art(anime.cover, Modifier.fillMaxSize(), anime.title)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(anime.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                (listOfNotNull(anime.score?.let { "★ " + scoreText(it) }) + metaParts(anime).take(2) + anime.genres.take(1)).joinToString("  ·  "),
+                fontSize = 12.sp, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = Muted, modifier = Modifier.size(22.dp))
+    }
+}
+
+/** Discover banner: the genre's most popular title as a wide, blurred showcase card. */
+@Composable
+fun GenreShowcase(genre: String, top: Anime?, onPick: (Anime) -> Unit) {
+    val wide = LocalWide.current
+    val shape = RoundedCornerShape(22.dp)
+    if (top == null) {
+        Box(Modifier.padding(horizontal = gutter, vertical = 12.dp).fillMaxWidth().height(if (wide) 210.dp else 170.dp).shimmer(shape))
+        return
+    }
+    var focused by remember { mutableStateOf(false) }
+    val accent = vivid(top.accent)
+    Box(
+        Modifier.padding(horizontal = gutter, vertical = 12.dp).fillMaxWidth().height(if (wide) 210.dp else 170.dp)
+            .onFocusChanged { focused = it.hasFocus }
+            .clip(shape).background(Panel)
+            .border(if (focused) 3.dp else 1.dp, if (focused) Color.White else Hairline, shape)
+            .tappable { onPick(top) },
+    ) {
+        Art(top.banner ?: top.coverXL, Modifier.fillMaxSize().atmosphere(10.dp))
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink.copy(alpha = .95f), .6f to Ink.copy(alpha = .55f), 1f to Ink.copy(alpha = .15f))))
+        Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(accent.copy(alpha = .28f), Color.Transparent))))
+        Row(Modifier.fillMaxSize().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("#1 IN ${genre.uppercase()}", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp,
+                    style = jakarta(brush = Brush.linearGradient(listOf(accent, lerp(accent, Color.White, .45f)))))
+                Spacer(Modifier.height(6.dp))
+                Text(top.title, fontSize = if (wide) 28.sp else 22.sp, lineHeight = if (wide) 32.sp else 26.sp, fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.6).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(10.dp))
+                MetaTags(top)
+            }
+            Spacer(Modifier.width(16.dp))
+            Box(
+                Modifier.width(if (wide) 118.dp else 92.dp).aspectRatio(2f / 3f).graphicsLayer { rotationZ = 3f }
+                    .shadow(24.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(Panel)
+            ) { Art(top.coverXL, Modifier.fillMaxSize(), top.title) }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GridSkeleton() {
+    BoxWithConstraints(Modifier.padding(horizontal = gutter, vertical = 10.dp)) {
+        val gap = if (LocalWide.current) 20.dp else 12.dp
+        val cols = maxOf(3, ((maxWidth + gap) / ((if (LocalWide.current) 130.dp else 110.dp) + gap)).toInt())
+        val w = (maxWidth - gap * (cols - 1)) / cols - 1.dp
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+            repeat(cols * 2) { PosterSkeleton(w) }
         }
     }
 }
@@ -792,6 +983,10 @@ fun DetailContent(
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
     providerDiscovery: ProviderDiscoveryResult? = null,
+    /** Watched fraction per episode page URL, from playback history. */
+    progress: Map<String, Float> = emptyMap(),
+    /** True while providers are still being searched for episodes. */
+    discovering: Boolean = false,
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
     var providerChoices by remember { mutableStateOf<List<ProviderEpisode>?>(null) }
@@ -804,7 +999,7 @@ fun DetailContent(
     val discoveredEpisodes = discoveredGroups.flatMap { it.episodes }
         .map { Episode(it.title, it.thumbnail, it.pageUrl, it.providerName) }
         .ifEmpty { anime.streamingEpisodes }
-    val accent = anime.accent?.let { Color(it) } ?: Violet
+    val accent = vivid(anime.accent)
     val watchLabel = official?.let { "Watch on ${it.first}" } ?: "Watch"
     val findOnSource = {
         val url = if (selectedSourceId == "listed") "https://anilist.co/anime/${anime.id}"
@@ -815,13 +1010,15 @@ fun DetailContent(
     val genresLine: @Composable () -> Unit = {
         if (anime.genres.isNotEmpty()) Text(
             anime.genres.take(3).joinToString("  ·  ").uppercase(), fontWeight = FontWeight.ExtraBold,
-            fontSize = 12.sp, letterSpacing = 1.6.sp, style = jakarta(brush = Brand),
+            fontSize = 12.sp, letterSpacing = 1.6.sp,
+            style = jakarta(brush = Brush.linearGradient(listOf(accent, lerp(accent, Color.White, .45f)))),
         )
     }
     val title: @Composable (Boolean) -> Unit = { big ->
         Text(
-            anime.title, fontSize = if (big) 42.sp else 30.sp, lineHeight = if (big) 46.sp else 34.sp,
+            anime.title, fontSize = if (big) 42.sp else 28.sp, lineHeight = if (big) 46.sp else 32.sp,
             fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp, maxLines = if (big) 2 else 3, overflow = TextOverflow.Ellipsis,
+            textAlign = if (big) TextAlign.Start else TextAlign.Center,
             style = jakarta(shadow = Shadow(Color.Black.copy(alpha = .7f), Offset(0f, 3f), 18f)),
         )
     }
@@ -880,8 +1077,9 @@ fun DetailContent(
     Column {
         if (wide) {
             // TV: everything you need fits on the first screen.
-            Box(Modifier.fillMaxWidth().height(screenH)) {
-                Art(anime.banner ?: anime.coverXL, Modifier.fillMaxSize())
+            Box(Modifier.fillMaxWidth().height(screenH).clipToBounds()) {
+                Art(anime.banner ?: anime.coverXL, Modifier.fillMaxSize().atmosphere(14.dp))
+                if (!canBlur) Box(Modifier.fillMaxSize().background(Ink.copy(alpha = .25f)))
                 Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink, .5f to Ink.copy(alpha = .84f), 1f to Ink.copy(alpha = .35f))))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Ink.copy(alpha = .6f), .25f to Color.Transparent, .7f to Color.Transparent, 1f to Ink)))
                 Box(
@@ -919,17 +1117,35 @@ fun DetailContent(
                 }
             }
         } else {
-            // Phone: full-bleed key art, title block on the fade, then one big Play and a row of actions.
-            Box(Modifier.fillMaxWidth().height((screenH * 0.64f).coerceIn(440.dp, 600.dp))) {
-                Art(anime.coverXL ?: anime.banner, Modifier.fillMaxSize(), anime.title)
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Ink.copy(alpha = .7f), .2f to Color.Transparent, .42f to Color.Transparent, .8f to Ink.copy(alpha = .9f), 1f to Ink)))
+            // Phone: blurred key art as atmosphere, a sharp poster on top, centred title block.
+            Box(Modifier.fillMaxWidth().clipToBounds()) {
+                Art(anime.coverXL ?: anime.banner, Modifier.matchParentSize().atmosphere(28.dp))
+                if (!canBlur) Box(Modifier.matchParentSize().background(Ink.copy(alpha = .3f)))
+                Box(Modifier.matchParentSize().background(Brush.verticalGradient(0f to Ink.copy(alpha = .55f), .4f to Ink.copy(alpha = .35f), .82f to Ink.copy(alpha = .94f), 1f to Ink)))
+                Box(
+                    Modifier.align(Alignment.Center).fillMaxWidth().height(420.dp)
+                        .background(Brush.radialGradient(listOf(accent.copy(alpha = .30f), Color.Transparent)))
+                )
                 BackIcon(Modifier.statusBarsPadding().padding(start = gutter - 4.dp, top = 10.dp), onBack)
-                Column(Modifier.align(Alignment.BottomStart).padding(start = gutter, end = gutter, bottom = 4.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(start = gutter, end = gutter, top = 58.dp, bottom = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    val shape = RoundedCornerShape(18.dp)
+                    Box(
+                        Modifier.width(158.dp).aspectRatio(2f / 3f)
+                            .shadow(34.dp, shape, ambientColor = Color.Black, spotColor = accent)
+                            .clip(shape).background(Panel)
+                    ) {
+                        Art(anime.coverXL, Modifier.fillMaxSize(), anime.title)
+                        Box(Modifier.fillMaxSize().border(1.dp, Hairline, shape))
+                    }
+                    Spacer(Modifier.height(20.dp))
                     genresLine()
                     Spacer(Modifier.height(8.dp))
                     title(false)
                     Spacer(Modifier.height(12.dp))
-                    MetaTags(anime)
+                    MetaTags(anime, center = true)
                 }
             }
             Column(Modifier.padding(horizontal = gutter)) {
@@ -965,45 +1181,41 @@ fun DetailContent(
                     anime.watchLinks.drop(1).distinctBy { it.first }.forEach { (site, url) -> Chip(site, false) { onOpen(url) } }
                 }
             }
-            val episodeCount = if (discoveredGroups.isNotEmpty()) discoveredGroups.size else discoveredEpisodes.size
-            SectionTitle("Episodes", caption = episodeCount.takeIf { it > 0 }?.let { "$it listed" })
+            val entries = remember(discoveredGroups, discoveredEpisodes, anime.id) {
+                if (discoveredGroups.isNotEmpty()) discoveredGroups.map { group ->
+                    val first = group.episodes.first()
+                    EpisodeEntry(
+                        key = group.key, number = group.episodeNumber, season = group.seasonNumber,
+                        title = group.title, thumbnail = first.thumbnail, url = first.pageUrl,
+                        site = if (group.episodes.size > 1) "${group.episodes.size} sources" else first.providerName,
+                        native = OfficialPlaybackRegistry.find(anime.id, group.title) != null,
+                        sources = group.episodes,
+                    )
+                } else discoveredEpisodes.mapIndexed { i, ep ->
+                    EpisodeEntry(
+                        key = ep.url + "#" + i, number = EpisodeMatcher.episodeNumber(ep.title), season = EpisodeMatcher.seasonNumber(ep.title),
+                        title = ep.title, thumbnail = ep.thumbnail, url = ep.url, site = ep.site,
+                        native = OfficialPlaybackRegistry.find(anime.id, ep.title) != null,
+                    )
+                }
+            }
+            SectionTitle("Episodes", caption = entries.size.takeIf { it > 0 }?.let { if (it == 1) "1 listed" else "$it listed" })
             providerDiscovery?.takeIf { it.providers.isNotEmpty() }?.let { result ->
                 Text(
                     "Checked " + result.providers.count { it.available } + " provider(s) · " + discoveredEpisodes.size + " episode listing(s)",
                     color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 2.dp),
                 )
             }
-            if (discoveredGroups.isNotEmpty()) {
-                // Keep equivalent episode listings grouped. If more than one provider
-                // supplies an episode, let the viewer choose which page to open.
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    items(discoveredGroups, key = { it.key }) { group ->
-                        val first = group.episodes.first()
-                        val label = if (group.episodes.size > 1) "${group.episodes.size} sources" else first.providerName
-                        val displayTitle = group.seasonNumber?.let { "Season $it · ${group.title}" } ?: group.title
-                        val cardEpisode = Episode(displayTitle, first.thumbnail, first.pageUrl, label)
-                        EpisodeCard(cardEpisode, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, group.title) != null) {
-                            if (group.episodes.size > 1) providerChoices = group.episodes
-                            else onPlayEpisode(Episode(first.title, first.thumbnail, first.pageUrl, first.providerName))
-                        }
-                    }
+            when {
+                entries.isNotEmpty() -> EpisodeList(entries, accent, progress) { entry ->
+                    // Equivalent listings from several providers: let the viewer choose which page to open.
+                    val sources = entry.sources
+                    if (sources != null && sources.size > 1) providerChoices = sources
+                    else if (sources != null) sources.first().let { onPlayEpisode(Episode(it.title, it.thumbnail, it.pageUrl, it.providerName)) }
+                    else onPlayEpisode(Episode(entry.title, entry.thumbnail, entry.url, entry.site))
                 }
-            } else if (discoveredEpisodes.isEmpty()) {
-                EmptyNote("No episode links listed for this title yet.", "Try another source, or play a file you own.")
-            } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    items(discoveredEpisodes) { ep ->
-                        EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
-                            onPlayEpisode(ep)
-                        }
-                    }
-                }
+                discovering -> EpisodeListSkeleton()
+                else -> EmptyNote("No episode links listed for this title yet.", "Try another source, or play a file you own.")
             }
             if (wide && anime.synopsis.length > 280) {
                 SectionTitle("Story")
@@ -1042,44 +1254,109 @@ private fun EmptyNote(title: String, hint: String) {
     }
 }
 
+/** One row in the episode list; [sources] holds equivalent listings from several providers. */
+private data class EpisodeEntry(
+    val key: String, val number: Int?, val season: Int?, val title: String, val thumbnail: String?,
+    val url: String, val site: String, val native: Boolean, val sources: List<ProviderEpisode>? = null,
+)
+
+/** "Episode 12 - The Storm" → "The Storm"; titles that are only an episode label stay as they are. */
+private fun episodeName(title: String): String {
+    val stripped = title.replace(Regex("""^(?i)\s*(?:season\s*\d+\s*[·:,-]?\s*)?(?:episode|ep)\.?\s*\d+\s*[-:–—.]\s*"""), "").trim()
+    return stripped.ifEmpty { title }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EpisodeCard(ep: Episode, nativeAvailable: Boolean, onClick: () -> Unit) {
+private fun EpisodeList(
+    entries: List<EpisodeEntry>, accent: Color, progress: Map<String, Float>, onPlay: (EpisodeEntry) -> Unit,
+) {
+    val seasons = remember(entries) { entries.mapNotNull { it.season }.distinct().sorted() }
+    var season by remember(entries) { mutableStateOf(seasons.firstOrNull()) }
+    var newestFirst by remember(entries) { mutableStateOf(false) }
+    var showAll by remember(entries) { mutableStateOf(false) }
+    val visible = remember(entries, season, newestFirst) {
+        val inSeason = if (seasons.size > 1) entries.filter { it.season == season } else entries
+        val ordered = inSeason.sortedWith(compareBy<EpisodeEntry>({ it.season ?: 0 }, { it.number ?: Int.MAX_VALUE }))
+        if (newestFirst) ordered.reversed() else ordered
+    }
+    val limit = 12
+    FlowRow(
+        Modifier.padding(horizontal = gutter, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (seasons.size > 1) seasons.forEach { n -> Chip("Season $n", n == season) { season = n; showAll = false } }
+        if (visible.size > 1) Chip(if (newestFirst) "Newest first" else "Oldest first", false) { newestFirst = !newestFirst }
+    }
+    Column(
+        Modifier.padding(horizontal = gutter - 8.dp).widthIn(max = 920.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        (if (showAll) visible else visible.take(limit)).forEach { entry ->
+            EpisodeRow(entry, accent, progress[entry.url] ?: 0f) { onPlay(entry) }
+        }
+    }
+    if (!showAll && visible.size > limit) {
+        GhostButton(
+            "Show all ${visible.size} episodes", Icons.Filled.KeyboardArrowDown,
+            Modifier.padding(start = gutter, top = 8.dp),
+        ) { showAll = true }
+    }
+}
+
+@Composable
+private fun EpisodeRow(entry: EpisodeEntry, accent: Color, watched: Float, onClick: () -> Unit) {
     val wide = LocalWide.current
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "ep")
-    val shape = RoundedCornerShape(14.dp)
-    Column(
-        Modifier.width(if (wide) 270.dp else 220.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+    val shape = RoundedCornerShape(16.dp)
+    val thumbShape = RoundedCornerShape(12.dp)
+    Row(
+        Modifier.fillMaxWidth()
             .onFocusChanged { focused = it.hasFocus }
-            .clickable(onClick = onClick)
+            .clip(shape)
+            .background(if (focused) Color.White.copy(alpha = .1f) else Color.Transparent)
+            .border(2.dp, if (focused) Color.White else Color.Transparent, shape)
+            .tappable(onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-                .then(if (focused) Modifier.shadow(22.dp, shape, ambientColor = Violet, spotColor = Violet) else Modifier)
-                .clip(shape).background(Panel)
+            Modifier.width(if (wide) 176.dp else 136.dp).aspectRatio(16f / 9f).clip(thumbShape).background(Panel)
         ) {
-            Art(ep.thumbnail, Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.45f to Color.Transparent, 1f to Ink.copy(alpha = .85f))))
+            Art(entry.thumbnail, Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Ink.copy(alpha = .25f)))
             Box(
-                Modifier.align(Alignment.Center).size(42.dp).clip(CircleShape)
-                    .background(if (focused) Color.White else Ink.copy(alpha = .5f))
-                    .border(1.dp, if (focused) Color.Transparent else Color.White.copy(alpha = .35f), CircleShape),
+                Modifier.align(Alignment.Center).size(32.dp).clip(CircleShape)
+                    .background(if (focused) Color.White else Ink.copy(alpha = .55f))
+                    .border(1.dp, if (focused) Color.Transparent else Color.White.copy(alpha = .4f), CircleShape),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = if (focused) Ink else Color.White, modifier = Modifier.size(24.dp)) }
-            Text(
-                ep.site, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1,
-                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
-                    .background(Ink.copy(alpha = .55f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
-            )
-            Box(Modifier.fillMaxSize().border(if (focused) 3.dp else 1.dp, if (focused) Color.White else Hairline, shape))
+            ) { Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = if (focused) Ink else Color.White, modifier = Modifier.size(19.dp)) }
+            if (watched > 0f) Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = .2f))) {
+                Box(Modifier.fillMaxWidth(watched.coerceIn(.03f, 1f)).height(3.dp).background(accent))
+            }
+            Box(Modifier.fillMaxSize().border(1.dp, Hairline, thumbShape))
         }
-        Spacer(Modifier.height(9.dp))
-        Text(ep.title, fontSize = 13.5.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(
-            if (nativeAvailable) "PLAY IN ANIMEWAVE" else "OPENS SOURCE PAGE", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
-            letterSpacing = .8.sp, color = if (nativeAvailable) Violet else Muted, modifier = Modifier.padding(top = 4.dp),
-        )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            val label = listOfNotNull(entry.season?.let { "S$it" }, entry.number?.let { "EPISODE $it" }).joinToString(" · ")
+            if (label.isNotEmpty()) Text(label, fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = accent)
+            Text(
+                episodeName(entry.title), fontSize = if (wide) 16.sp else 14.5.sp, lineHeight = if (wide) 21.sp else 19.sp,
+                fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            val status = when {
+                watched >= .9f -> "Watched"
+                watched > 0f -> "${(watched * 100).toInt()}% watched"
+                entry.native -> "Plays in AnimeWave"
+                else -> "Opens source page"
+            }
+            Text(
+                listOf(entry.site, status).filter { it.isNotBlank() }.joinToString("  ·  "),
+                fontSize = 11.5.sp, color = if (entry.native || watched > 0f) Soft else Muted, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp),
+            )
+        }
     }
 }
 
@@ -1173,12 +1450,13 @@ fun HomeContent(
     }
     // Rows tuck up into the hero's fade for a layered look.
     Column(Modifier.offset(y = if (LocalWide.current) (-40).dp else (-4).dp)) {
-        Top10Row(home.map { it["trending"].orEmpty() }, onPick)
-        ContinueWatchingSection(continueWatching, onResume)
-        if (onPlayClassic != null) ClassicCard(onPlayClassic)
-        AnimeRow("Airing This Season", home.map { it["airing"].orEmpty() }, onPick = onPick)
-        AnimeRow("Action & Adventure", home.map { it["action"].orEmpty() }, onPick = onPick)
-        AnimeRow("All-Time Popular", home.map { it["popular"].orEmpty() }, onPick = onPick)
+        // Sections rise in one after another the first time Home appears.
+        Column(Modifier.enterUp(0)) { ContinueWatchingSection(continueWatching, onResume) }
+        Column(Modifier.enterUp(1)) { Top10Row(home.map { it["trending"].orEmpty() }, onPick) }
+        if (onPlayClassic != null) Column(Modifier.enterUp(2)) { ClassicCard(onPlayClassic) }
+        Column(Modifier.enterUp(3)) { AnimeRow("Airing This Season", home.map { it["airing"].orEmpty() }, onPick = onPick) }
+        Column(Modifier.enterUp(4)) { AnimeRow("Action & Adventure", home.map { it["action"].orEmpty() }, onPick = onPick) }
+        Column(Modifier.enterUp(5)) { AnimeRow("All-Time Popular", home.map { it["popular"].orEmpty() }, onPick = onPick) }
         Text(
             "Anime info from AniList.co  ·  Watch opens official streaming services",
             color = Muted.copy(alpha = .7f), fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 28.dp),
@@ -1203,33 +1481,40 @@ private fun ResumeCard(record: PlaybackRecord, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.05f else 1f, label = "resume")
     val shape = RoundedCornerShape(16.dp)
-    Row(
-        Modifier.width(if (LocalWide.current) 320.dp else 270.dp)
+    val (show, episode) = record.title.split(" — ", limit = 2).let { it[0] to it.getOrNull(1)?.substringBefore(" · ") }
+    Column(
+        Modifier.width(if (LocalWide.current) 300.dp else 250.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.hasFocus }
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(Color(0xFF1E2133), Color(0xFF141621))))
-            .border(if (focused) 2.dp else 1.dp, if (focused) Color.White else Hairline, shape)
-            .clickable(onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .tappable(onClick)
     ) {
-        Box(Modifier.size(44.dp).background(Brand, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = "Resume", tint = Color.White, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(record.title, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = .12f))) {
-                Box(Modifier.fillMaxWidth(record.progress.coerceAtLeast(.02f)).height(4.dp).background(Brand, CircleShape))
-            }
-            Spacer(Modifier.height(6.dp))
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                .then(if (focused) Modifier.shadow(22.dp, shape, ambientColor = Violet, spotColor = Violet) else Modifier)
+                .clip(shape)
+                .background(Brush.linearGradient(listOf(Violet.copy(alpha = .45f), Pink.copy(alpha = .25f), Color(0xFF141621))))
+        ) {
+            if (record.artwork != null) Art(record.artwork, Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.35f to Color.Transparent, 1f to Ink.copy(alpha = .9f))))
+            Box(
+                Modifier.align(Alignment.Center).size(46.dp).clip(CircleShape)
+                    .background(if (focused) Color.White else Ink.copy(alpha = .5f))
+                    .border(1.dp, if (focused) Color.Transparent else Color.White.copy(alpha = .4f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.PlayArrow, contentDescription = "Resume", tint = if (focused) Ink else Color.White, modifier = Modifier.size(26.dp)) }
             Text(
-                formatPlaybackTime(record.positionMs) + " of " + formatPlaybackTime(record.durationMs),
-                color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                formatPlaybackTime((record.durationMs - record.positionMs).coerceAtLeast(0)) + " left",
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Soft,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(start = 10.dp, end = 10.dp, bottom = 12.dp),
             )
+            Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(4.dp).background(Color.White.copy(alpha = .15f))) {
+                Box(Modifier.fillMaxWidth(record.progress.coerceAtLeast(.02f)).height(4.dp).background(Brand))
+            }
+            Box(Modifier.fillMaxSize().border(if (focused) 3.dp else 1.dp, if (focused) Color.White else Hairline, shape))
         }
+        Spacer(Modifier.height(9.dp))
+        Text(show, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (episode != null) Text(episode, fontSize = 12.sp, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1247,7 +1532,7 @@ private fun ClassicCard(onPlay: () -> Unit) {
             .clip(shape)
             .background(Brush.linearGradient(listOf(Violet.copy(alpha = .32f), Pink.copy(alpha = .16f), Color(0xFF141621))))
             .border(if (focused) 2.dp else 1.dp, if (focused) Color.White else Hairline, shape)
-            .clickable(onClick = onPlay)
+            .tappable(onPlay)
             .padding(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

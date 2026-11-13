@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -44,6 +46,11 @@ class ScreenshotTest {
     private val images: (String?) -> Painter? = { url ->
         url?.let { dir?.resolve("img/" + md5(it)) }?.takeIf { it.exists() }
             ?.let { BitmapFactory.decodeFile(it.path) }?.asImageBitmap()?.let(::BitmapPainter)
+    }
+
+    /** Renders a still frame: inspection mode makes entrance and loop animations start finished. */
+    private fun snap(content: @Composable () -> Unit) = paparazzi.snapshot {
+        CompositionLocalProvider(androidx.compose.ui.platform.LocalInspectionMode provides true) { content() }
     }
 
     private fun md5(s: String) = MessageDigest.getInstance("MD5").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -88,14 +95,14 @@ class ScreenshotTest {
         }
     }
 
-    @Test fun tvHome() = paparazzi.snapshot { HomeShot(wide = true) }
-    @Test fun tvHomeRows() = paparazzi.snapshot { HomeShot(wide = true, scroll = 1300) }
-    @Test fun tvDetail() = paparazzi.snapshot { DetailShot(wide = true) }
-    @Test fun tvDiscover() = paparazzi.snapshot {
+    @Test fun tvHome() = snap { HomeShot(wide = true) }
+    @Test fun tvHomeRows() = snap { HomeShot(wide = true, scroll = 1300) }
+    @Test fun tvDetail() = snap { DetailShot(wide = true) }
+    @Test fun tvDiscover() = snap {
         Frame(true, "Discover") { ScreenTitle("Discover", "The most popular anime in every genre"); GenreChips("Action") {}; AnimeGrid(home().map { it.getValue("trending") }) {} }
     }
 
-    @Test fun tvDetailEpisodes() = paparazzi.snapshot {
+    @Test fun tvDetailEpisodes() = snap {
         AnimeWaveTheme(true) {
             CompositionLocalProvider(LocalImageOverride provides images) {
                 Column(Modifier.fillMaxSize().background(Ink).verticalScroll(remember { ScrollState(1000) })) {
@@ -105,7 +112,7 @@ class ScreenshotTest {
         }
     }
 
-    @Test fun tvSettings() = paparazzi.snapshot {
+    @Test fun tvSettings() = snap {
         Frame(true, "Settings") {
             ScreenTitle("Settings")
             SettingsScreen("1.0.12", UpdateState.Downloading(UpdateInfo(14, "1.0.14", "Redesign UI"), .42f), {}, {}, {})
@@ -114,7 +121,7 @@ class ScreenshotTest {
 
     @Test fun phoneSettings() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
-        paparazzi.snapshot {
+        snap {
             CompositionLocalProvider(LocalImageOverride provides images) {
                 AnimeWaveTheme(false) {
                     Shell("Settings", {}, remember { FocusRequester() }, remember { ScrollState(0) }, update = true) {
@@ -126,28 +133,28 @@ class ScreenshotTest {
         }
     }
 
-    @Test fun tvIntro() = paparazzi.snapshot { AnimeWaveTheme(true) { IntroContent(1f) } }
-    @Test fun tvIntroMid() = paparazzi.snapshot { AnimeWaveTheme(true) { IntroContent(.38f) } }
+    @Test fun tvIntro() = snap { AnimeWaveTheme(true) { IntroContent(1f) } }
+    @Test fun tvIntroMid() = snap { AnimeWaveTheme(true) { IntroContent(.38f) } }
 
     @Test fun phoneIntro() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
-        paparazzi.snapshot { AnimeWaveTheme(false) { IntroContent(1f) } }
+        snap { AnimeWaveTheme(false) { IntroContent(1f) } }
     }
 
     @Test fun phoneHome() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
-        paparazzi.snapshot { HomeShot(wide = false) }
+        snap { HomeShot(wide = false) }
     }
 
     @Test fun phoneHomeRows() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
-        paparazzi.snapshot { HomeShot(wide = false, scroll = 1700) }
+        snap { HomeShot(wide = false, scroll = 1700) }
     }
 
     @Test fun phoneDetailEpisodes() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
         val anime = data.getValue("trending").firstOrNull { it.streamingEpisodes.isNotEmpty() } ?: data.getValue("trending").first()
-        paparazzi.snapshot {
+        snap {
             AnimeWaveTheme(false) {
                 CompositionLocalProvider(LocalImageOverride provides images) {
                     Column(Modifier.fillMaxSize().background(Ink).verticalScroll(remember { ScrollState(1500) })) {
@@ -158,8 +165,74 @@ class ScreenshotTest {
         }
     }
 
+    @Test fun phoneSearch() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        snap {
+            CompositionLocalProvider(LocalImageOverride provides images) {
+                AnimeWaveTheme(false) {
+                    Shell("Search", {}, remember { FocusRequester() }, remember { ScrollState(0) }) {
+                        ScreenTitle("Search")
+                        SearchBox("") {}
+                        SearchSuggestions(listOf("Frieren", "One Piece", "Solo Leveling"), data.getValue("trending").take(8), {}, {}, {})
+                    }
+                }
+            }
+        }
+    }
+
+    @Test fun phoneDiscover() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        snap {
+            CompositionLocalProvider(LocalImageOverride provides images) {
+                AnimeWaveTheme(false) {
+                    Shell("Discover", {}, remember { FocusRequester() }, remember { ScrollState(0) }) {
+                        ScreenTitle("Discover", "The most popular anime in every genre")
+                        GenreChips("Action") {}
+                        GenreShowcase("Action", data.getValue("action").first()) {}
+                        AnimeGrid(home().map { it.getValue("action").drop(1) }) {}
+                    }
+                }
+            }
+        }
+    }
+
+    @Test fun phoneLoading() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        snap {
+            AnimeWaveTheme(false) {
+                Shell("Home", {}, remember { FocusRequester() }, remember { ScrollState(0) }) {
+                    HomeContent(Loaded(null, false) {}, emptySet(), FocusRequester(), {}, {}, {})
+                }
+            }
+        }
+    }
+
+    private fun controls(wide: Boolean) = snap {
+        CompositionLocalProvider(LocalImageOverride provides images) {
+            AnimeWaveTheme(wide) {
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
+                    Art(data.getValue("trending")[2].banner ?: data.getValue("trending")[2].coverXL, Modifier.fillMaxSize())
+                    PlayerControls(
+                        title = data.getValue("trending")[2].title + " — Episode 6", subtitle = "Crunchyroll",
+                        isPlaying = true, buffering = false, positionMs = 754_000, durationMs = 1_420_000, bufferedMs = 960_000,
+                        hasPrevious = true, hasNext = true, playFocus = remember { FocusRequester() },
+                        onBack = {}, onPlayPause = {}, onSeekTo = {}, onSkip = {}, onPrevious = {}, onNext = {}, onSubtitles = {}, onQuality = {},
+                    )
+                    SkipBubble(10, Modifier.align(androidx.compose.ui.Alignment.CenterEnd).padding(end = 56.dp))
+                }
+            }
+        }
+    }
+
+    @Test fun tvPlayer() = controls(wide = true)
+
+    @Test fun phonePlayer() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5.copy(orientation = ScreenOrientation.LANDSCAPE, screenWidth = 2340, screenHeight = 1080))
+        controls(wide = false)
+    }
+
     @Test fun phoneDetail() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
-        paparazzi.snapshot { DetailShot(wide = false) }
+        snap { DetailShot(wide = false) }
     }
 }

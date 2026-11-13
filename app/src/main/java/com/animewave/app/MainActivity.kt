@@ -40,6 +40,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
@@ -158,11 +160,23 @@ fun Shell(
         // Down from the tabs into the content. On Home, HomeContent overlays it on the hero itself.
         val bar: @Composable () -> Unit = { TopBar(tab, tabFocus, update = update, onTab = onTab) }
         // Pages run underneath the floating phone dock; the end spacer keeps the last row clear of it.
-        Column(Modifier.fillMaxSize().padding(top = inner.calculateTopPadding()).verticalScroll(scroll).imePadding()) {
-            if (tab == "Home") CompositionLocalProvider(LocalTopBar provides bar) { content() }
-            else { bar(); content() }
-            if (wide) Spacer(Modifier.navigationBarsPadding().height(32.dp))
-            else Spacer(Modifier.height(inner.calculateBottomPadding() + 12.dp))
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().padding(top = inner.calculateTopPadding()).verticalScroll(scroll).imePadding()) {
+                if (tab == "Home") CompositionLocalProvider(LocalTopBar provides bar) { content() }
+                else { bar(); content() }
+                if (wide) Spacer(Modifier.navigationBarsPadding().height(32.dp))
+                else Spacer(Modifier.height(inner.calculateBottomPadding() + 12.dp))
+            }
+            if (!wide) {
+                // Past the hero on Home (or the header elsewhere) a solid bar takes over at the top.
+                val density = LocalDensity.current
+                val screenH = LocalConfiguration.current.screenHeightDp.dp
+                val threshold = with(density) {
+                    (if (tab == "Home") (screenH * 0.78f).coerceIn(520.dp, 700.dp) - 90.dp else 70.dp).toPx()
+                }
+                val showBar by remember(threshold) { derivedStateOf { scroll.value > threshold } }
+                StickyBar(showBar, update, tab == "Settings", onTab)
+            }
         }
     }
 }
@@ -192,8 +206,17 @@ fun AnimeWaveApp() {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
     var continueWatching by remember { mutableStateOf(PlaybackHistoryStore.list(context)) }
-    fun recordPlayback(uri: String, title: String, positionMs: Long, durationMs: Long) {
-        PlaybackHistoryStore.record(context, uri, title, positionMs, durationMs)
+    var recentSearches by remember {
+        mutableStateOf(prefs.getString("recentSearches", null)?.split('\n')?.filter { it.isNotBlank() }.orEmpty())
+    }
+    fun rememberSearch(text: String) {
+        val q = text.trim().take(60)
+        if (q.isEmpty()) return
+        recentSearches = (listOf(q) + recentSearches.filterNot { it.equals(q, ignoreCase = true) }).take(8)
+        prefs.edit().putString("recentSearches", recentSearches.joinToString("\n")).apply()
+    }
+    fun recordPlayback(uri: String, title: String, positionMs: Long, durationMs: Long, artwork: String?, key: String?) {
+        PlaybackHistoryStore.record(context, uri, title, positionMs, durationMs, artwork, key)
         continueWatching = PlaybackHistoryStore.list(context)
     }
     fun toggleSaved(id: Int) {
@@ -283,7 +306,7 @@ fun AnimeWaveApp() {
                             if (approved != null) {
                                 val item = MediaItem.Builder()
                                     .setUri(approved.url)
-                                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(anime.title + " — " + ep.title).build())
+                                    .setMediaMetadata(mediaInfo(anime.title + " — " + ep.title, anime.coverXL, ep.url))
                                     .build()
                                 playing = PlayerLaunch(listOf(item), 0)
                             } else {
@@ -304,8 +327,7 @@ fun AnimeWaveApp() {
                                             val resolved = candidate.stream
                                             val builder = MediaItem.Builder()
                                                 .setUri(resolved.url)
-                                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
-                                                    .setTitle(anime.title + " — " + ep.title + " · " + resolved.providerName).build())
+                                                .setMediaMetadata(mediaInfo(anime.title + " — " + ep.title + " · " + resolved.providerName, anime.coverXL, ep.url))
                                                 .setSubtitleConfigurations(SubtitleManager.configurations(resolved.subtitles))
                                             resolved.mimeType?.let { builder.setMimeType(it) }
                                             playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
@@ -323,6 +345,8 @@ fun AnimeWaveApp() {
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
                         providerDiscovery = providerDiscovery.value,
+                        progress = continueWatching.mapNotNull { r -> r.key?.let { it to r.progress } }.toMap(),
+                        discovering = providerDiscovery.value == null && !providerDiscovery.failed,
                     )
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
                 }
@@ -340,7 +364,7 @@ fun AnimeWaveApp() {
                         continueWatching = continueWatching,
                         onResume = { record ->
                             val item = MediaItem.Builder().setUri(record.uri)
-                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(record.title).build())
+                                .setMediaMetadata(mediaInfo(record.title, record.artwork, record.key))
                                 .build()
                             playing = PlayerLaunch(listOf(item), 0, record.positionMs)
                         },
@@ -363,18 +387,27 @@ fun AnimeWaveApp() {
                     "Discover" -> {
                         ScreenTitle("Discover", "The most popular anime in every genre")
                         GenreChips(genre) { genre = it }
-                        AnimeGrid(load(genre) { AniList.genre(genre) }, onPick = pick)
+                        val genreList = load(genre) { AniList.genre(genre) }
+                        if (!genreList.failed) GenreShowcase(genre, genreList.value?.firstOrNull(), pick)
+                        AnimeGrid(genreList.map { it.drop(1) }, onPick = pick)
                     }
                     "Search" -> {
                         ScreenTitle("Search")
                         SearchBox(query) { query = it }
                         if (query.isBlank()) {
-                            Text(
-                                "Search every anime on AniList by title.", color = Muted, fontSize = 15.sp,
-                                modifier = Modifier.padding(horizontal = if (wide) 48.dp else 20.dp, vertical = 12.dp),
+                            SearchSuggestions(
+                                recent = recentSearches,
+                                trending = home.value?.get("trending").orEmpty().take(8),
+                                onRecent = { query = it },
+                                onClearRecent = { recentSearches = emptyList(); prefs.edit().remove("recentSearches").apply() },
+                                onPick = pick,
                             )
                         } else {
-                            AnimeGrid(load(query) { delay(500); AniList.search(query.trim()) }, onPick = pick) // typing debounce
+                            AnimeGrid(
+                                load(query) { delay(500); AniList.search(query.trim()) }, // typing debounce
+                                empty = "No matches for “${query.trim()}”. Check the spelling or try the English or Japanese title.",
+                                onPick = { rememberSearch(query); pick(it) },
+                            )
                         }
                     }
                     "My List" -> {
@@ -431,8 +464,7 @@ fun AnimeWaveApp() {
                     val stream = candidate.stream
                     val builder = MediaItem.Builder()
                         .setUri(stream.url)
-                        .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
-                            .setTitle((selected?.title ?: "Anime") + " — " + candidate.episode.title + " · " + stream.providerName).build())
+                        .setMediaMetadata(mediaInfo((selected?.title ?: "Anime") + " — " + candidate.episode.title + " · " + stream.providerName, selected?.coverXL, candidate.episode.pageUrl))
                         .setSubtitleConfigurations(SubtitleManager.configurations(stream.subtitles))
                     stream.mimeType?.let { builder.setMimeType(it) }
                     val fallbackSources = candidates
@@ -441,8 +473,7 @@ fun AnimeWaveApp() {
                             val alternateStream = alternate.stream
                             val alternateItem = MediaItem.Builder()
                                 .setUri(alternateStream.url)
-                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
-                                    .setTitle((selected?.title ?: "Anime") + " — " + alternate.episode.title + " · " + alternateStream.providerName).build())
+                                .setMediaMetadata(mediaInfo((selected?.title ?: "Anime") + " — " + alternate.episode.title + " · " + alternateStream.providerName, selected?.coverXL, alternate.episode.pageUrl))
                                 .setSubtitleConfigurations(SubtitleManager.configurations(alternateStream.subtitles))
                                 .apply { alternateStream.mimeType?.let { setMimeType(it) } }
                                 .build()
@@ -459,3 +490,16 @@ fun AnimeWaveApp() {
       }
     }
 }
+
+/** Player metadata: title plus the poster for Continue Watching and the episode page it belongs to. */
+fun mediaInfo(title: String, artwork: String?, episodeKey: String?, artist: String? = null): androidx.media3.common.MediaMetadata =
+    androidx.media3.common.MediaMetadata.Builder()
+        .setTitle(title)
+        .apply {
+            artwork?.takeIf { it.startsWith("https://") }?.let { setArtworkUri(Uri.parse(it)) }
+            artist?.let { setArtist(it) }
+            episodeKey?.let { setExtras(android.os.Bundle().apply { putString(EPISODE_KEY, it) }) }
+        }
+        .build()
+
+const val EPISODE_KEY = "animewave.episodeKey"
