@@ -1518,13 +1518,13 @@ private fun ResumeCard(record: PlaybackRecord, onClick: () -> Unit) {
     }
 }
 
-/** Audio-and-video sample clip used to verify native playback in AnimeWave. */
+/** Public-domain Japanese animated short used to verify real anime playback in AnimeWave. */
 @Composable
 private fun ClassicCard(onPlay: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.03f else 1f, label = "classic")
     val shape = RoundedCornerShape(20.dp)
-    SectionTitle("Playback test", caption = "Audio + video")
+    SectionTitle("Classic anime", caption = "Public domain")
     Row(
         Modifier.padding(horizontal = gutter).widthIn(max = 720.dp).fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
@@ -1543,8 +1543,8 @@ private fun ClassicCard(onPlay: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("PLAYS IN ANIMEWAVE", fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, style = jakarta(brush = Brand))
             Spacer(Modifier.height(4.dp))
-            Text("Sintel trailer", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("Blender Foundation  ·  CC BY 3.0", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("My Big Emergency", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Sanae Yamamoto  ·  1936", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
