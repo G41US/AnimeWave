@@ -34,6 +34,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -330,7 +331,22 @@ fun AnimeWaveApp() {
             ) {
                 val pick: (Anime) -> Unit = { selected = it }
                 when (tab) {
-                    "Home" -> HomeContent(
+                    "Home" -> Column {
+                        Button(onClick = {
+                            val testUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ed/Yasuji_Murata-_Momotaro_in_the_Sky_%281931%29.ogv/Yasuji_Murata-_Momotaro_in_the_Sky_%281931%29.ogv.360p.mp4"
+                            val testItem = MediaItem.Builder()
+                                .setUri(testUrl)
+                                .setMimeType("video/mp4")
+                                .setMediaMetadata(
+                                    androidx.media3.common.MediaMetadata.Builder()
+                                        .setTitle("Momotaro in the Sky (1931) — Public Domain Test")
+                                        .setArtist("Yasuji Murata · Wikimedia Commons")
+                                        .build()
+                                )
+                                .build()
+                            playing = PlayerLaunch(listOf(testItem), 0)
+                        }) { Text("Test Playback — Momotaro (1931)") }
+                        HomeContent(
                         home, saved, heroFocus, onPick = pick,
                         onWatch = { watch(it.watchLinks.firstOrNull()?.second) },
                         onToggleSave = { toggleSaved(it.id) },
@@ -342,6 +358,7 @@ fun AnimeWaveApp() {
                             playing = PlayerLaunch(listOf(item), 0, record.positionMs)
                         },
                     )
+                    }
                     "Discover" -> {
                         ScreenTitle("Discover", "The most popular anime in every genre")
                         GenreChips(genre) { genre = it }
