@@ -5,8 +5,9 @@
 - `AnimeProvider` defines the provider contract.
 - `ProviderManager` runs registered adapters with a maximum of three concurrent lookups and a 12-second per-provider timeout.
 - `AniListStreamingProvider` adapts AniList's public `streamingEpisodes` metadata into the common episode model.
-- `EpisodeMatcher` extracts episode numbers from common names (Episode 2, Ep 02, E02 and 1x02) and normalizes titles.
-- `ProviderManager.discover` groups equivalent episode listings while preserving each provider variant.
+- `EpisodeMatcher` extracts season and episode identities from S02E03, Season 2 Episode 3, 2x03, Episode 2 and similar names.
+- `ProviderManager.discover` groups equivalent listings by season and episode, preserves provider variants, and removes duplicate page URLs.
+- Subtitle configuration accepts only SRT, WebVTT and ASS/SSA MIME types; playback history accepts only valid HTTPS or content URIs.
 - `PlaybackResolver` is the single gate for native playback. A provider must explicitly mark a stream as authorized, return HTTPS, and use a supported media type.
 - `SubtitleManager` maps SRT, WebVTT and ASS/SSA tracks into Media3 subtitle configurations.
 - `PlaybackHistoryStore` persists the last position for supported native streams and user-selected content URIs. Completed items are removed from Continue Watching.
@@ -25,7 +26,7 @@ External source search is only a convenience for locating a title on the selecte
 
 ## Current provider coverage
 
-AniList is the only active built-in adapter in this change. The other named entries in `AnimeSourceRegistry` remain external website shortcuts, not working API integrations. They must not be presented as automatically searchable providers until adapters have been implemented and verified.
+AniList is the only active built-in adapter in this change. Season-aware grouping improves the listings AniList supplies, but it does not create new streaming-site integrations. The other named entries in `AnimeSourceRegistry` remain external website shortcuts, not working API integrations. They must not be presented as automatically searchable providers until adapters have been implemented and verified.
 
 ## Testing
 
