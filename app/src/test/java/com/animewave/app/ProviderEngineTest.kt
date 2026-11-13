@@ -46,6 +46,35 @@ class ProviderEngineTest {
         }
     }
 
+
+    @Test fun resolverAcceptsOnlyAuthorizedHttpsStreamsWithSupportedMimeTypes() = runBlocking {
+        val anime = Anime(
+            id = 78, title = "Resolver Test", cover = null, coverXL = null, banner = null,
+            accent = null, genres = emptyList(), year = null, format = "TV", episodes = 1,
+            score = null, synopsis = "", watchLinks = emptyList(), streamingEpisodes = emptyList(),
+        )
+        val provider = object : AnimeProvider {
+            override val id = "resolver-test"
+            override val displayName = "Resolver Test"
+            override suspend fun searchEpisodes(anime: Anime) = emptyList<ProviderEpisode>()
+            override suspend fun resolve(episode: ProviderEpisode) = when (episode.title) {
+                "valid" -> ProviderStream("https://media.example/video.m3u8", displayName, true, "application/vnd.apple.mpegurl; charset=utf-8")
+                "insecure" -> ProviderStream("http://media.example/video.mp4", displayName, true, "video/mp4")
+                "unsupported" -> ProviderStream("https://media.example/file.bin", displayName, true, "application/octet-stream")
+                else -> null
+            }
+        }
+        ProviderManager.register(provider)
+        try {
+            fun episode(title: String) = ProviderEpisode(provider.id, provider.displayName, anime.id, title, 1, null, "https://example.com/episode")
+            assertEquals("https://media.example/video.m3u8", ProviderManager.resolve(episode("valid"))?.url)
+            assertNull(ProviderManager.resolve(episode("insecure")))
+            assertNull(ProviderManager.resolve(episode("unsupported")))
+        } finally {
+            ProviderManager.unregister(provider.id)
+        }
+    }
+
     @Test fun subtitleExtensionsMapToMedia3MimeTypes() {
         assertEquals(MimeTypes.TEXT_VTT, SubtitleManager.mimeType("https://example.com/captions.vtt"))
         assertEquals(MimeTypes.APPLICATION_SUBRIP, SubtitleManager.mimeType("https://example.com/captions.srt"))
