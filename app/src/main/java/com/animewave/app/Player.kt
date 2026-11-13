@@ -114,6 +114,13 @@ fun PlayerScreen(
         val oldOrientation = activity?.requestedOrientation
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         onDispose {
+            val currentItem = player.currentMediaItem
+            val currentUri = currentItem?.localConfiguration?.uri?.toString()
+            if (currentUri != null) {
+                val currentTitle = currentItem.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() } ?: "Video"
+                val currentDuration = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L
+                latestProgress(currentUri, currentTitle, player.currentPosition.coerceAtLeast(0L), currentDuration)
+            }
             lifecycle.removeObserver(pauseOnStop)
             player.removeListener(listener)
             player.release()

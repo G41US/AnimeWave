@@ -41,7 +41,7 @@ object PlaybackHistoryStore {
         val uri = runCatching { Uri.parse(uriValue) }.getOrNull() ?: return
         if (uri.scheme !in setOf("https", "content") || uriValue.isBlank() || title.isBlank()) return
         val records = list(context).filterNot { it.uri == uriValue }.toMutableList()
-        if (durationMs > 0 && positionMs >= (durationMs - COMPLETE_TOLERANCE_MS).coerceAtLeast(0)) {
+        if (durationMs > 0 && positionMs >= (durationMs * 0.95).toLong()) {
             save(context, records)
             return
         }
