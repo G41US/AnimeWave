@@ -4,12 +4,13 @@ import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import java.net.URI
 
 object SubtitleManager {
     fun configurations(tracks: List<ProviderSubtitle>): List<MediaItem.SubtitleConfiguration> =
         tracks.mapNotNull { track ->
+            if (!isAllowedUrl(track.url)) return@mapNotNull null
             val uri = runCatching { Uri.parse(track.url) }.getOrNull() ?: return@mapNotNull null
-            if (uri.scheme !in setOf("https", "content")) return@mapNotNull null
             val mime = track.mimeType ?: mimeType(track.url) ?: return@mapNotNull null
             MediaItem.SubtitleConfiguration.Builder(uri)
                 .setMimeType(mime)
@@ -18,6 +19,15 @@ object SubtitleManager {
                 .setSelectionFlags(if (track.isDefault) C.SELECTION_FLAG_DEFAULT else 0)
                 .build()
         }
+
+    fun isAllowedUrl(value: String): Boolean {
+        val uri = runCatching { URI(value) }.getOrNull() ?: return false
+        return when (uri.scheme?.lowercase()) {
+            "https" -> !uri.host.isNullOrBlank() && uri.userInfo == null
+            "content" -> !uri.authority.isNullOrBlank()
+            else -> false
+        }
+    }
 
     fun mimeType(url: String): String? = when (url.substringBefore('?').substringAfterLast('.', "").lowercase()) {
         "vtt" -> MimeTypes.TEXT_VTT
