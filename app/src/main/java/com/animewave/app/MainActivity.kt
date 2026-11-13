@@ -183,7 +183,7 @@ fun AnimeWaveApp() {
     val detailFocus = remember { FocusRequester() }
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
-    var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "listed") }
+    var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "animepahe") ?: "animepahe") }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
