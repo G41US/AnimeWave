@@ -29,3 +29,11 @@ AnimePahe and other third-party anime aggregation sites are not treated as autho
 5. Pass the selected candidate's URL, safe headers, and subtitle tracks to Media3.
 6. On a playback error, record the attempted URL and select the next untried candidate, with a small retry limit and user-visible status.
 7. Validate actual playback on Android phones and Android TV devices in supported regions.
+
+## Player integration milestone
+
+The follow-up player integration adds a source picker when more than one authorized candidate resolves for an episode. It displays the provider, declared quality, and subtitle-track count. A single verified candidate starts directly; multiple candidates require the user to choose.
+
+After a choice, the player receives the selected stream's sanitized request headers and subtitle tracks. Remaining verified candidates are kept as a bounded fallback queue: if playback errors, the player tries the next candidate with that candidate's own safe request headers. This queue is finite and does not repeat a failed URL.
+
+The app still has no newly verified third-party provider adapters. A working source picker does not create more source coverage by itself. Next-episode autoplay and live site integrations remain follow-up work.
