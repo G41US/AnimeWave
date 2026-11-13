@@ -66,6 +66,8 @@ private val PickTypes = arrayOf(
     "video/*", "application/x-subrip", "text/vtt", "text/x-ssa", "application/octet-stream",
 )
 
+private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen() // icon on dark background the instant the app is tapped
@@ -172,7 +174,7 @@ fun AnimeWaveApp() {
     var genre by rememberSaveable { mutableStateOf(Genres.first()) }
     var selected by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<LocalEpisode<Uri>>>(emptyList()) }
-    var playing by remember { mutableStateOf<Pair<List<MediaItem>, Int>?>(null) }
+    var playing by remember { mutableStateOf<PlayerLaunch?>(null) }
     var askLink by remember { mutableStateOf(false) }
     var showIntro by rememberSaveable { mutableStateOf(true) }
     val scroll = rememberScrollState()
@@ -185,6 +187,11 @@ fun AnimeWaveApp() {
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
+    var continueWatching by remember { mutableStateOf(PlaybackHistoryStore.list(context)) }
+    fun recordPlayback(uri: String, title: String, positionMs: Long, durationMs: Long) {
+        PlaybackHistoryStore.record(context, uri, title, positionMs, durationMs)
+        continueWatching = PlaybackHistoryStore.list(context)
+    }
     fun toggleSaved(id: Int) {
         saved = if (id in saved) saved - id else saved + id
         prefs.edit().putStringSet("myList", saved.map(Int::toString).toSet()).apply()
@@ -195,6 +202,7 @@ fun AnimeWaveApp() {
     }
 
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        uris.forEach { uri -> runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
         val picked = pairEpisodes(uris.map { LocalFile(it, displayName(context, it)) })
         if (picked.isNotEmpty()) episodes = picked
         else if (uris.isNotEmpty()) toast(context, "No video files in that selection.")
@@ -226,6 +234,9 @@ fun AnimeWaveApp() {
     }
     LaunchedEffect(Unit) { checkForUpdate(quiet = true) }
     val home = load(Unit) { AniList.home() }
+    val providerDiscovery = load(selected?.id) {
+        selected?.let { ProviderManager.discover(it) } ?: ProviderDiscoveryResult.empty()
+    }
     val homeReady = home.value != null
 
     BackHandler(enabled = tab != "Home") { tab = "Home" }
@@ -242,7 +253,13 @@ fun AnimeWaveApp() {
         val nowPlaying = playing
         val anime = selected
         when {
-            nowPlaying != null -> PlayerScreen(nowPlaying.first, nowPlaying.second) { playing = null }
+            nowPlaying != null -> PlayerScreen(
+                items = nowPlaying.items,
+                startIndex = nowPlaying.startIndex,
+                startPositionMs = nowPlaying.startPositionMs,
+                onExit = { playing = null },
+                onProgress = ::recordPlayback,
+            )
             anime != null -> {
                 BackHandler { selected = null }
                 LaunchedEffect(anime.id) { if (isTv) runCatching { detailFocus.requestFocus() } }
@@ -256,22 +273,40 @@ fun AnimeWaveApp() {
                             prefs.edit().putString("preferredSource", sourceId).apply()
                         },
                         onPlayEpisode = { ep ->
-                            val stream = OfficialPlaybackRegistry.find(anime.id, ep.title)
-                            if (stream != null) {
+                            val approved = OfficialPlaybackRegistry.find(anime.id, ep.title)
+                            if (approved != null) {
                                 val item = MediaItem.Builder()
-                                    .setUri(stream.url)
-                                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle("${anime.title} — ${ep.title}").build())
+                                    .setUri(approved.url)
+                                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(anime.title + " — " + ep.title).build())
                                     .build()
-                                playing = listOf(item) to 0
-                            } else if (preferredSource == "listed") {
-                                openLink(context, ep.url)
+                                playing = PlayerLaunch(listOf(item), 0)
                             } else {
-                                val source = AnimeSourceRegistry.byId(preferredSource)
-                                toast(context, "${source.displayName} is selected, but its in-app episode adapter is not connected yet.")
-                                openLink(context, source.homeUrl)
+                                val providerEpisode = providerDiscovery.value?.groups?.flatMap { it.episodes }
+                                    ?.firstOrNull { it.pageUrl == ep.url }
+                                scope.launch {
+                                    val resolved = runCatching {
+                                        providerEpisode?.let { PlaybackResolver.resolve(it) }
+                                    }.getOrNull()
+                                    if (resolved != null) {
+                                        val builder = MediaItem.Builder()
+                                            .setUri(resolved.uri.toString())
+                                            .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
+                                                .setTitle(anime.title + " — " + ep.title + " · " + resolved.providerName).build())
+                                            .setSubtitleConfigurations(SubtitleManager.configurations(resolved.subtitles))
+                                        resolved.mimeType?.let { builder.setMimeType(it) }
+                                        playing = PlayerLaunch(listOf(builder.build()), 0)
+                                    } else if (preferredSource == "listed") {
+                                        openLink(context, ep.url)
+                                    } else {
+                                        val source = AnimeSourceRegistry.byId(preferredSource)
+                                        toast(context, source.displayName + " is a website shortcut; native episode playback needs a supported provider adapter.")
+                                        openLink(context, source.homeUrl)
+                                    }
+                                }
                             }
                         },
                         onToggleSave = { toggleSaved(anime.id) }, onPlayOwn = { selected = null; tab = "Player" },
+                        providerDiscovery = providerDiscovery.value,
                     )
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
                 }
@@ -286,6 +321,13 @@ fun AnimeWaveApp() {
                         home, saved, heroFocus, onPick = pick,
                         onWatch = { watch(it.watchLinks.firstOrNull()?.second) },
                         onToggleSave = { toggleSaved(it.id) },
+                        continueWatching = continueWatching,
+                        onResume = { record ->
+                            val item = MediaItem.Builder().setUri(record.uri)
+                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(record.title).build())
+                                .build()
+                            playing = PlayerLaunch(listOf(item), 0, record.positionMs)
+                        },
                     )
                     "Discover" -> {
                         ScreenTitle("Discover", "The most popular anime in every genre")
@@ -335,7 +377,7 @@ fun AnimeWaveApp() {
                                 }
                             },
                             onLink = { askLink = true },
-                            onPlay = { i -> playing = episodes.map { it.toMediaItem() } to i },
+                            onPlay = { i -> playing = PlayerLaunch(episodes.map { it.toMediaItem() }, i) },
                         )
                     }
                 }
@@ -343,7 +385,7 @@ fun AnimeWaveApp() {
         }
         if (askLink) LinkDialog(onDismiss = { askLink = false }) { url ->
             askLink = false
-            playing = listOf(MediaItem.fromUri(url)) to 0
+            playing = PlayerLaunch(listOf(MediaItem.fromUri(url)), 0)
         }
         // Title screen on top while the catalog loads underneath.
         AnimatedVisibility(showIntro, exit = fadeOut(tween(450))) {

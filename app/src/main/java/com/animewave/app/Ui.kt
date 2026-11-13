@@ -613,12 +613,16 @@ fun DetailContent(
     onPlayEpisode: (Episode) -> Unit,
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
+    providerDiscovery: ProviderDiscoveryResult? = null,
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
     val selectedSource = AnimeSourceRegistry.byId(selectedSourceId)
     val wide = LocalWide.current
     val screenH = LocalConfiguration.current.screenHeightDp.dp
     val official = anime.watchLinks.firstOrNull()
+    val discoveredEpisodes = providerDiscovery?.groups?.flatMap { it.episodes }
+        ?.map { Episode(it.title, it.thumbnail, it.pageUrl, it.providerName) }
+        ?: anime.streamingEpisodes
     val accent = anime.accent?.let { Color(it) } ?: Panel
 
     val genresLine: @Composable () -> Unit = {
@@ -730,7 +734,13 @@ fun DetailContent(
                 }
             }
             SectionTitle("Episodes")
-            if (anime.streamingEpisodes.isEmpty()) {
+            providerDiscovery?.takeIf { it.providers.isNotEmpty() }?.let { result ->
+                Text(
+                    "Checked " + result.providers.count { it.available } + " provider(s) · " + discoveredEpisodes.size + " episode listing(s)",
+                    color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 2.dp),
+                )
+            }
+            if (discoveredEpisodes.isEmpty()) {
                 Text("No episode links listed for this title yet.", color = Muted, modifier = Modifier.padding(horizontal = gutter))
             } else {
                 // AniList's order; each opens the episode on the official site.
@@ -738,7 +748,7 @@ fun DetailContent(
                     contentPadding = PaddingValues(horizontal = gutter, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(anime.streamingEpisodes) { ep ->
+                    items(discoveredEpisodes) { ep ->
                         EpisodeCard(ep, nativeAvailable = OfficialPlaybackRegistry.find(anime.id, ep.title) != null) {
                             onPlayEpisode(ep)
                         }
@@ -863,6 +873,8 @@ fun LinkDialog(onDismiss: () -> Unit, onPlay: (String) -> Unit) {
 fun HomeContent(
     home: Loaded<Map<String, List<Anime>>>, saved: Set<Int>, heroFocus: FocusRequester,
     onPick: (Anime) -> Unit, onWatch: (Anime) -> Unit, onToggleSave: (Anime) -> Unit,
+    continueWatching: List<PlaybackRecord> = emptyList(),
+    onResume: (PlaybackRecord) -> Unit = {},
 ) {
     val trending = home.value?.get("trending").orEmpty()
     Box {
@@ -873,6 +885,7 @@ fun HomeContent(
     // Rows tuck up into the hero's fade for a layered look.
     Column(Modifier.offset(y = if (LocalWide.current) (-40).dp else (-12).dp)) {
         Top10Row(home.map { it["trending"].orEmpty() }, onPick)
+        ContinueWatchingSection(continueWatching, onResume)
         AnimeRow("Airing This Season", home.map { it["airing"].orEmpty() }, onPick = onPick)
         AnimeRow("Action & Adventure", home.map { it["action"].orEmpty() }, onPick = onPick)
         AnimeRow("All-Time Popular", home.map { it["popular"].orEmpty() }, onPick = onPick)
@@ -881,6 +894,45 @@ fun HomeContent(
             color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 28.dp),
         )
     }
+}
+
+@Composable
+private fun ContinueWatchingSection(records: List<PlaybackRecord>, onResume: (PlaybackRecord) -> Unit) {
+    if (records.isEmpty()) return
+    SectionTitle("Continue Watching")
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = gutter),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(records, key = { it.uri }) { record ->
+            Column(
+                Modifier.width(if (LocalWide.current) 280.dp else 230.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Panel)
+                    .clickable { onResume(record) }
+                    .padding(14.dp),
+            ) {
+                Text(record.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { record.progress },
+                    modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                    color = Violet, trackColor = Color.White.copy(alpha = .12f),
+                )
+                Spacer(Modifier.height(7.dp))
+                Text(formatPlaybackTime(record.positionMs) + " / " + formatPlaybackTime(record.durationMs), color = Muted, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+private fun formatPlaybackTime(milliseconds: Long): String {
+    val seconds = (milliseconds.coerceAtLeast(0) / 1000).toInt()
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val remainder = seconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, remainder)
+    else "%d:%02d".format(minutes, remainder)
 }
 
 // ---------- Settings & updates ----------

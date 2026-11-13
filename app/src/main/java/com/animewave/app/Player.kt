@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +41,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
 
 fun displayName(context: Context, uri: Uri): String =
     context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
@@ -65,16 +68,33 @@ fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
 /** Fullscreen player. Next/previous move through [items]; the CC button picks subtitle tracks. */
 @OptIn(UnstableApi::class)
 @Composable
-fun PlayerScreen(items: List<MediaItem>, startIndex: Int, onExit: () -> Unit) {
+fun PlayerScreen(
+    items: List<MediaItem>, startIndex: Int, startPositionMs: Long = 0L,
+    onExit: () -> Unit, onProgress: (String, String, Long, Long) -> Unit = { _, _, _, _ -> },
+) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var error by remember { mutableStateOf<String?>(null) }
     val player = remember {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItems(items, startIndex, 0)
+            setMediaItems(items, startIndex, startPositionMs)
             prepare()
             playWhenReady = true
+        }
+    }
+    val latestProgress by rememberUpdatedState(onProgress)
+    LaunchedEffect(player) {
+        while (true) {
+            val item = player.currentMediaItem
+            val uri = item?.localConfiguration?.uri?.toString()
+            if (uri != null) {
+                val title = item.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() }
+                    ?: uri.substringAfterLast('/').ifBlank { "Video" }
+                val duration = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L
+                latestProgress(uri, title, player.currentPosition.coerceAtLeast(0L), duration)
+            }
+            delay(5_000)
         }
     }
     BackHandler(onBack = onExit)
