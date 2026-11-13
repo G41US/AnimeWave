@@ -39,7 +39,10 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 
@@ -70,18 +73,27 @@ fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
 @Composable
 fun PlayerScreen(
     items: List<MediaItem>, startIndex: Int, startPositionMs: Long = 0L,
+    requestHeaders: Map<String, String> = emptyMap(),
     onExit: () -> Unit, onProgress: (String, String, Long, Long) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var error by remember { mutableStateOf<String?>(null) }
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItems(items, startIndex, startPositionMs)
-            prepare()
-            playWhenReady = true
-        }
+    val player = remember(items, requestHeaders) {
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(false)
+            .setDefaultRequestProperties(requestHeaders)
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build()
+            .apply {
+                setMediaItems(items, startIndex, startPositionMs)
+                prepare()
+                playWhenReady = true
+            }
     }
     val latestProgress by rememberUpdatedState(onProgress)
     LaunchedEffect(player) {
@@ -99,7 +111,7 @@ fun PlayerScreen(
     }
     BackHandler(onBack = onExit)
 
-    DisposableEffect(Unit) {
+    DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(e: PlaybackException) { error = e.errorCodeName }
             override fun onMediaItemTransition(item: MediaItem?, reason: Int) { error = null }
