@@ -57,6 +57,8 @@ private fun subtitleMime(name: String) = when (extension(name)) {
     else -> MimeTypes.APPLICATION_SUBRIP
 }
 
+data class PlayerFallback(val item: MediaItem, val requestHeaders: Map<String, String> = emptyMap())
+
 fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
     .setUri(video.ref)
     .setMediaMetadata(MediaMetadata.Builder().setTitle(video.name.substringBeforeLast('.')).build())
@@ -74,13 +76,14 @@ fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
 fun PlayerScreen(
     items: List<MediaItem>, startIndex: Int, startPositionMs: Long = 0L,
     requestHeaders: Map<String, String> = emptyMap(),
+    fallbacks: List<PlayerFallback> = emptyList(),
     onExit: () -> Unit, onProgress: (String, String, Long, Long) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var error by remember { mutableStateOf<String?>(null) }
-    val player = remember(items, requestHeaders) {
+    val player = remember(items, requestHeaders, fallbacks) {
         val httpFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(false)
             .setDefaultRequestProperties(requestHeaders)
@@ -112,8 +115,25 @@ fun PlayerScreen(
     BackHandler(onBack = onExit)
 
     DisposableEffect(player) {
+        var nextFallback = 0
         val listener = object : Player.Listener {
-            override fun onPlayerError(e: PlaybackException) { error = e.errorCodeName }
+            override fun onPlayerError(e: PlaybackException) {
+                val fallback = fallbacks.getOrNull(nextFallback++)
+                if (fallback != null) {
+                    val fallbackHttpFactory = DefaultHttpDataSource.Factory()
+                        .setAllowCrossProtocolRedirects(false)
+                        .setDefaultRequestProperties(fallback.requestHeaders)
+                    val fallbackDataSource = DefaultDataSource.Factory(context, fallbackHttpFactory)
+                    val fallbackSource = DefaultMediaSourceFactory(fallbackDataSource)
+                        .createMediaSource(fallback.item)
+                    player.setMediaSource(fallbackSource)
+                    player.prepare()
+                    player.playWhenReady = true
+                    error = null
+                } else {
+                    error = e.errorCodeName
+                }
+            }
             override fun onMediaItemTransition(item: MediaItem?, reason: Int) { error = null }
         }
         val pauseOnStop = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) player.pause() }
