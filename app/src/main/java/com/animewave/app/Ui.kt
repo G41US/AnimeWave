@@ -654,6 +654,11 @@ fun DetailContent(
             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
             GhostButton("Play my own file", Icons.Filled.PlayArrow, onClick = onPlayOwn)
             GhostButton("Sources · ${selectedSource.displayName}", Icons.Filled.PlayArrow) { showSourcePicker = true }
+            GhostButton("Find on ${selectedSource.displayName}", Icons.Filled.Search) {
+                val url = if (selectedSourceId == "listed") "https://anilist.co/anime/${anime.id}"
+                else AnimeSourceRegistry.searchUrl(selectedSourceId, anime.title)
+                onOpen(url)
+            }
         }
     }
     val poster: @Composable (Dp) -> Unit = { w ->
