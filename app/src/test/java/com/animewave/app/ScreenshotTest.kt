@@ -165,6 +165,11 @@ class ScreenshotTest {
         snap { HomeShot(wide = false) }
     }
 
+    @Test fun phoneTop10() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        snap { HomeShot(wide = false, scroll = 1450) }
+    }
+
     @Test fun phoneHomeRows() {
         paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
         snap { HomeShot(wide = false, scroll = 1700) }
