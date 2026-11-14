@@ -3,6 +3,7 @@ package com.animewave.app
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackCandidateEngineTest {
@@ -12,7 +13,7 @@ class PlaybackCandidateEngineTest {
             candidateProvider("candidate-high", "High", "https://media.example/high.m3u8", "1080p"),
             candidateProvider("candidate-duplicate", "Duplicate", "https://MEDIA.example/high.m3u8", "720p"),
         )
-        providers.forEach(ProviderManager::register)
+        providers.forEach(ProviderManager::registerStreamProvider)
         try {
             val episodes = providers.mapIndexed { index, provider ->
                 ProviderEpisode(provider.id, provider.displayName, 1, "Episode 1", 1, null, "https://source.example/ep$index")
@@ -39,8 +40,8 @@ class PlaybackCandidateEngineTest {
             "candidate-unsupported", "Unsupported", "https://media.example/unsupported.mkv", "1080p",
             mimeType = "video/x-matroska",
         )
-        ProviderManager.register(unconfirmed)
-        ProviderManager.register(unsupported)
+        ProviderManager.registerStreamProvider(unconfirmed)
+        ProviderManager.registerStreamProvider(unsupported)
         try {
             val episodes = listOf(unconfirmed, unsupported).map {
                 ProviderEpisode(it.id, it.displayName, 1, "Episode 2", 2, null, "https://source.example/${it.id}")
@@ -64,8 +65,8 @@ class PlaybackCandidateEngineTest {
             "candidate-hls", "HLS", "https://media.example/video.m3u8", "720p",
             mimeType = "application/vnd.apple.mpegurl",
         )
-        ProviderManager.register(mp4)
-        ProviderManager.register(hls)
+        ProviderManager.registerStreamProvider(mp4)
+        ProviderManager.registerStreamProvider(hls)
         try {
             val episodes = listOf(mp4, hls).map {
                 ProviderEpisode(it.id, it.displayName, 1, "Episode 3", 3, null, "https://source.example/${it.id}")
@@ -87,7 +88,7 @@ class PlaybackCandidateEngineTest {
         quality: String,
         rightsConfirmed: Boolean = true,
         mimeType: String = "application/vnd.apple.mpegurl",
-    ) = object : AnimeProvider {
+    ) = object : StreamProvider {
         override val id = id
         override val displayName = name
         override suspend fun searchEpisodes(anime: Anime) = emptyList<ProviderEpisode>()
