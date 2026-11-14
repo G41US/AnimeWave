@@ -1641,7 +1641,7 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = playbackGatewayDraft,
-                onValueChange = playbackGatewayDraft.let { { value -> playbackGatewayDraft = value; onPlaybackGatewayUrlChange(value) } },
+                onValueChange = { value -> playbackGatewayDraft = value; onPlaybackGatewayUrlChange(value) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 label = { Text("HTTPS service URL") },
