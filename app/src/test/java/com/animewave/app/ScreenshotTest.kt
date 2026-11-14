@@ -134,6 +134,25 @@ class ScreenshotTest {
     }
 
     @Test fun tvIntro() = snap { AnimeWaveTheme(true) { IntroContent(1f) } }
+    @Test fun phoneIntroEarly() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        snap { AnimeWaveTheme(false) { IntroContent(.45f) } }
+    }
+    @Test fun phoneReveal() {
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_5)
+        snap {
+            CompositionLocalProvider(LocalImageOverride provides images) {
+                AnimeWaveTheme(false) {
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                        Shell("Home", {}, remember { FocusRequester() }, remember { ScrollState(0) }) {
+                            HomeContent(home(), emptySet(), FocusRequester(), {}, {}, {})
+                        }
+                        IntroContent(1f) { .5f }
+                    }
+                }
+            }
+        }
+    }
     @Test fun tvIntroMid() = snap { AnimeWaveTheme(true) { IntroContent(.38f) } }
 
     @Test fun phoneIntro() {

@@ -41,6 +41,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -203,6 +205,9 @@ fun AnimeWaveApp() {
     var playbackChoices by remember { mutableStateOf<List<ResolvedPlaybackCandidate>?>(null) }
     var askLink by remember { mutableStateOf(false) }
     var showIntro by rememberSaveable { mutableStateOf(true) }
+    // 0 → 1 as the title sequence opens onto Home; drives the iris, the settle-in zoom and section entrances.
+    val reveal = remember { Animatable(if (showIntro) 0f else 1f) }
+    val entranceReady by remember { derivedStateOf { reveal.value > .3f } }
     val scroll = rememberScrollState()
     val tabFocus = remember { FocusRequester() }
     val heroFocus = remember { FocusRequester() }
@@ -358,6 +363,13 @@ fun AnimeWaveApp() {
       Box(Modifier.fillMaxSize()) {
         val nowPlaying = playing
         val anime = selected
+        // Home settles in from a slight zoom as the iris opens.
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            val e = RevealEasing.transform(reveal.value)
+            val s = 1.08f - .08f * e
+            scaleX = s; scaleY = s
+        }) {
+        CompositionLocalProvider(LocalEntranceReady provides entranceReady) {
         when {
             nowPlaying != null -> PlayerScreen(
                 items = nowPlaying.items,
@@ -543,13 +555,21 @@ fun AnimeWaveApp() {
                 }
             }
         }
+        }
+        }
         if (askLink) LinkDialog(onDismiss = { askLink = false }) { url ->
             askLink = false
             playing = PlayerLaunch(listOf(MediaItem.fromUri(url)), 0)
         }
-        // Title screen on top while the catalog loads underneath.
-        AnimatedVisibility(showIntro, exit = fadeOut(tween(450))) {
-            IntroScreen(ready = { home.value != null || home.failed }) { showIntro = false }
+        // Title sequence on top while the catalog loads underneath, then an iris opens onto Home.
+        if (showIntro) IntroScreen(
+            ready = { home.value != null || home.failed },
+            reveal = { reveal.value },
+        ) {
+            scope.launch {
+                reveal.animateTo(1f, tween(1150, easing = RevealEasing))
+                showIntro = false
+            }
         }
         playbackChoices?.let { candidates ->
             PlaybackSourceDialog(
