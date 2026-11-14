@@ -14,10 +14,10 @@ function isPublicAddress(address) {
   }
   if (net.isIPv6(address)) {
     const value = address.toLowerCase();
+    if (value.startsWith("::ffff:")) return isPublicAddress(value.slice(7));
     return !(value === "::" || value === "::1" || value.startsWith("fc") ||
       value.startsWith("fd") || value.startsWith("fe80:") ||
-      value.startsWith("::ffff:127.") || value.startsWith("::ffff:10.") ||
-      value.startsWith("::ffff:192.168."));
+      value.startsWith("2001:db8:"));
   }
   return false;
 }
@@ -30,7 +30,7 @@ export async function validateStreamUrl(value) {
     throw new Error("INVALID_STREAM_URL");
   }
 
-  if (url.protocol !== "https:" || url.username || url.password || url.port && url.port !== "443") {
+  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) {
     throw new Error("STREAM_URL_MUST_BE_PUBLIC_HTTPS");
   }
   if (!hostIsAllowed(url.hostname) || net.isIP(url.hostname)) {
@@ -41,16 +41,16 @@ export async function validateStreamUrl(value) {
   if (!addresses.length || addresses.some(record => !isPublicAddress(record.address))) {
     throw new Error("STREAM_HOST_RESOLVES_TO_NON_PUBLIC_ADDRESS");
   }
-
   return url;
 }
 
-export function pinnedLookup(url) {
+export function pinnedLookup(_url) {
   return (hostname, options, callback) => {
     dns.lookup(hostname, { all: true, verbatim: true }).then(records => {
       const record = records.find(item => isPublicAddress(item.address));
       if (!record) return callback(new Error("NO_PUBLIC_UPSTREAM_ADDRESS"));
-      callback(null, record.address, record.family);
+      if (options?.all) return callback(null, [{ address: record.address, family: record.family }]);
+      return callback(null, record.address, record.family);
     }).catch(callback);
   };
 }
