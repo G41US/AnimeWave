@@ -2,6 +2,7 @@ package com.animewave.app
 
 import android.os.Build
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -37,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -68,14 +71,26 @@ fun Modifier.tappable(onClick: () -> Unit): Modifier = composed {
     this.graphicsLayer { scaleX = scale; scaleY = scale }.clickable(interactionSource = source, indication = null, onClick = onClick)
 }
 
-/** Fades and lifts content in the first time it appears; [order] staggers neighbouring sections. */
+/** False while the launch title sequence still covers the app; entrances wait for it. */
+val LocalEntranceReady = compositionLocalOf { true }
+
+private val EnterEase = CubicBezierEasing(.16f, 1f, .3f, 1f)
+
+/**
+ * Fades and lifts content in the first time it appears (after the launch reveal, if one is
+ * playing); [order] staggers neighbouring sections so they cascade in one after another.
+ */
 fun Modifier.enterUp(order: Int = 0): Modifier = composed {
     if (staticFrame()) return@composed this
+    val ready = LocalEntranceReady.current
     val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { progress.animateTo(1f, tween(520, delayMillis = 60 * order.coerceAtMost(6))) }
+    val lift = with(LocalDensity.current) { 44.dp.toPx() }
+    LaunchedEffect(ready) {
+        if (ready) progress.animateTo(1f, tween(900, delayMillis = 110 * order.coerceAtMost(6), easing = EnterEase))
+    }
     this.graphicsLayer {
         alpha = progress.value
-        translationY = (1f - progress.value) * 36f
+        translationY = (1f - progress.value) * lift
     }
 }
 
