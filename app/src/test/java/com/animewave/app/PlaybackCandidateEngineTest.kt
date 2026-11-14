@@ -81,6 +81,33 @@ class PlaybackCandidateEngineTest {
         }
     }
 
+    @Test fun filtersNullProvidersAndReturnsOnlyResolvableCandidates() = runBlocking {
+        val nullProvider = object : StreamProvider {
+            override val id = "candidate-null"
+            override val displayName = "Null provider"
+            override suspend fun searchEpisodes(anime: Anime) = emptyList<ProviderEpisode>()
+            override suspend fun resolve(episode: ProviderEpisode): ProviderStream? = null
+        }
+        val hlsUrl = "https://media.example/authorized-test.m3u8"
+        val validProvider = candidateProvider(
+            "candidate-valid", "Valid HLS", hlsUrl, "Auto",
+        )
+        ProviderManager.registerStreamProvider(nullProvider)
+        ProviderManager.registerStreamProvider(validProvider)
+        try {
+            val episodes = listOf(nullProvider, validProvider).map {
+                ProviderEpisode(it.id, it.displayName, 1, "Episode 1", 1, null, "https://source.example/${it.id}")
+            }
+            val group = ProviderEpisodeGroup("test-resolvable", 1, "Episode 1", episodes)
+            val candidates = PlaybackCandidateEngine.resolve(group)
+            assertEquals(1, candidates.size)
+            assertEquals(hlsUrl, candidates.single().stream.url)
+        } finally {
+            ProviderManager.unregister(nullProvider.id)
+            ProviderManager.unregister(validProvider.id)
+        }
+    }
+
     private fun candidateProvider(
         id: String,
         name: String,
