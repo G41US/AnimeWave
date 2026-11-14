@@ -987,6 +987,8 @@ fun DetailContent(
     progress: Map<String, Float> = emptyMap(),
     /** True while providers are still being searched for episodes. */
     discovering: Boolean = false,
+    providerDiscoveryFailed: Boolean = false,
+    onRetryDiscovery: () -> Unit = {},
 ) {
     var showSourcePicker by remember { mutableStateOf(false) }
     var providerChoices by remember { mutableStateOf<List<ProviderEpisode>?>(null) }
@@ -1215,6 +1217,13 @@ fun DetailContent(
                     else onPlayEpisode(Episode(entry.title, entry.thumbnail, entry.url, entry.site))
                 }
                 discovering -> EpisodeListSkeleton()
+                providerDiscoveryFailed -> Row(
+                    Modifier.fillMaxWidth().padding(horizontal = gutter, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Couldn't check episode sources. Check your connection and retry.", color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onRetryDiscovery) { Text("Retry", color = Violet, fontWeight = FontWeight.Bold) }
+                }
                 else -> EmptyNote("No episode links listed for this title yet.", "Try another source, or play a file you own.")
             }
             if (wide && anime.synopsis.length > 280) {
