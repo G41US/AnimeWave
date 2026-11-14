@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: animewave-playback
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: playback-service
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: STREAM_ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"

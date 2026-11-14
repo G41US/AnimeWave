@@ -1581,7 +1581,7 @@ private fun SettingsCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onDownload: (UpdateInfo) -> Unit, onInstall: (File) -> Unit) {
+fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onDownload: (UpdateInfo) -> Unit, playbackGatewayUrl: String, onPlaybackGatewayUrlChange: (String) -> Unit, onInstall: (File) -> Unit) {
     Column(Modifier.padding(horizontal = gutter).widthIn(max = 720.dp)) {
         SettingsCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1629,6 +1629,23 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
                 UpdateState.Checking -> GhostButton("Checking…", Icons.Filled.Refresh) {}
                 else -> PrimaryButton("Check for updates", Icons.Filled.Refresh, onClick = onCheck)
             }
+        }
+        SettingsCard {
+            Text("Playback service", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Optional. Add your deployed AnimeWave playback service URL to proxy authorized HLS streams. Leave blank to play supported authorized streams directly.",
+                color = Muted, fontSize = 14.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = playbackGatewayUrl,
+                onValueChange = onPlaybackGatewayUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("HTTPS service URL") },
+                placeholder = { Text("https://your-playback-service.example") },
+            )
         }
         SettingsCard {
             Text("Install on another device", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Violet)

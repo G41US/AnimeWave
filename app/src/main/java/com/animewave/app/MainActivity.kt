@@ -202,6 +202,7 @@ fun AnimeWaveApp() {
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
     var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "animepahe") }
+    var playbackGatewayUrl by remember { mutableStateOf(prefs.getString("playbackGatewayUrl", "").orEmpty()) }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
@@ -235,6 +236,68 @@ fun AnimeWaveApp() {
         else if (uris.isNotEmpty()) toast(context, "No video files in that selection.")
     }
     val scope = rememberCoroutineScope()
+    fun playCandidate(
+        candidate: ResolvedPlaybackCandidate,
+        alternatives: List<ResolvedPlaybackCandidate>,
+        animeTitle: String,
+        artwork: String?,
+    ) {
+        scope.launch {
+            val stream = candidate.stream
+            val configuredGateway = playbackGatewayUrl.trim()
+            val gateway = if (configuredGateway.isNotBlank()) {
+                try {
+                    PlaybackGatewayClient.createSession(
+                        configuredGateway,
+                        "$animeTitle — ${candidate.episode.title}",
+                        candidate.episode.pageUrl,
+                        stream,
+                    )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+            } else null
+
+            val playableUrl = gateway?.sourceUrl ?: stream.url
+            val subtitleTracks = gateway?.subtitles?.takeIf { it.isNotEmpty() } ?: stream.subtitles
+            val builder = MediaItem.Builder()
+                .setUri(playableUrl)
+                .setMediaMetadata(mediaInfo(
+                    "$animeTitle — ${candidate.episode.title} · ${stream.providerName}",
+                    artwork,
+                    candidate.episode.pageUrl,
+                ))
+                .setSubtitleConfigurations(SubtitleManager.configurations(subtitleTracks))
+            if (gateway?.isHls == true) builder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+            else stream.mimeType?.let { builder.setMimeType(it) }
+
+            val fallbackSources = alternatives.map { alternate ->
+                val alternateStream = alternate.stream
+                val alternateItem = MediaItem.Builder()
+                    .setUri(alternateStream.url)
+                    .setMediaMetadata(mediaInfo(
+                        "$animeTitle — ${alternate.episode.title} · ${alternateStream.providerName}",
+                        artwork,
+                        alternate.episode.pageUrl,
+                    ))
+                    .setSubtitleConfigurations(SubtitleManager.configurations(alternateStream.subtitles))
+                    .apply { alternateStream.mimeType?.let { setMimeType(it) } }
+                    .build()
+                PlayerFallback(alternateItem, alternateStream.requestHeaders)
+            }
+            playing = PlayerLaunch(
+                listOf(builder.build()),
+                0,
+                requestHeaders = if (gateway != null) emptyMap() else stream.requestHeaders,
+                fallbacks = fallbackSources,
+            )
+            if (configuredGateway.isNotBlank() && gateway == null) {
+                toast(context, "Playback gateway unavailable. Trying the authorized stream directly.")
+            }
+        }
+    }
     var update by remember { mutableStateOf<UpdateState>(UpdateState.Idle) }
     fun checkForUpdate(quiet: Boolean) = scope.launch {
         update = UpdateState.Checking
@@ -323,14 +386,7 @@ fun AnimeWaveApp() {
                                     }
                                     when {
                                         candidates.size == 1 -> {
-                                            val candidate = candidates.first()
-                                            val resolved = candidate.stream
-                                            val builder = MediaItem.Builder()
-                                                .setUri(resolved.url)
-                                                .setMediaMetadata(mediaInfo(anime.title + " — " + ep.title + " · " + resolved.providerName, anime.coverXL, ep.url))
-                                                .setSubtitleConfigurations(SubtitleManager.configurations(resolved.subtitles))
-                                            resolved.mimeType?.let { builder.setMimeType(it) }
-                                            playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
+                                            playCandidate(candidates.first(), emptyList(), anime.title, anime.coverXL)
                                         }
                                         candidates.size > 1 -> playbackChoices = candidates
                                         else -> {
@@ -426,6 +482,11 @@ fun AnimeWaveApp() {
                             state = update,
                             onCheck = { checkForUpdate(quiet = false) },
                             onDownload = { downloadUpdate(it) },
+                            playbackGatewayUrl = playbackGatewayUrl,
+                            onPlaybackGatewayUrlChange = { value ->
+                                playbackGatewayUrl = value
+                                prefs.edit().putString("playbackGatewayUrl", value).apply()
+                            },
                             onInstall = { apk ->
                                 if (!Updates.install(context, apk)) toast(context, "Allow AnimeWave to install apps, then tap Install update again.")
                             },
@@ -463,29 +524,9 @@ fun AnimeWaveApp() {
                 onDismiss = { playbackChoices = null },
                 onSelect = { candidate ->
                     playbackChoices = null
-                    val stream = candidate.stream
-                    val builder = MediaItem.Builder()
-                        .setUri(stream.url)
-                        .setMediaMetadata(mediaInfo((selected?.title ?: "Anime") + " — " + candidate.episode.title + " · " + stream.providerName, selected?.coverXL, candidate.episode.pageUrl))
-                        .setSubtitleConfigurations(SubtitleManager.configurations(stream.subtitles))
-                    stream.mimeType?.let { builder.setMimeType(it) }
-                    val fallbackSources = candidates
-                        .filterNot { it == candidate }
-                        .map { alternate ->
-                            val alternateStream = alternate.stream
-                            val alternateItem = MediaItem.Builder()
-                                .setUri(alternateStream.url)
-                                .setMediaMetadata(mediaInfo((selected?.title ?: "Anime") + " — " + alternate.episode.title + " · " + alternateStream.providerName, selected?.coverXL, alternate.episode.pageUrl))
-                                .setSubtitleConfigurations(SubtitleManager.configurations(alternateStream.subtitles))
-                                .apply { alternateStream.mimeType?.let { setMimeType(it) } }
-                                .build()
-                            PlayerFallback(alternateItem, alternateStream.requestHeaders)
-                        }
-                    playing = PlayerLaunch(
-                        listOf(builder.build()), 0,
-                        requestHeaders = stream.requestHeaders,
-                        fallbacks = fallbackSources,
-                    )
+                    val animeTitle = selected?.title ?: "Anime"
+                    val artwork = selected?.coverXL
+                    playCandidate(candidate, candidates.filterNot { it == candidate }, animeTitle, artwork)
                 },
             )
         }
