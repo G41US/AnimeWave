@@ -80,3 +80,11 @@ Example request:
 - Sessions are held in process memory and expire automatically. Use a single service instance unless you add a shared session store.
 - The allowlist must contain the hostnames used by every HLS segment and subtitle. A CDN using unrelated hostnames needs those hostnames added too.
 - The React player is a web player. AnimeWave's existing Android app remains native Kotlin/Media3 and is not replaced by this React UI.
+
+## Deployment (Render)
+
+The gateway deploys from `render.yaml`; `STREAM_ALLOWED_HOSTS` and `CORS_ORIGINS` are set in the Render dashboard, not in the repo.
+
+To enable the legal embed-test provider on Render, set `EMBED_TEST_ENABLE=true`.
+
+> **Warning:** Do not set `ANIMEPAHE_ENABLE=true` on Render. Cloudflare blocks Render's IPs; once the AnimePahe provider is registered, Cloudflare will cause it to return `SERIES_NOT_FOUND` for every request on Render; until then the flag has no effect.
