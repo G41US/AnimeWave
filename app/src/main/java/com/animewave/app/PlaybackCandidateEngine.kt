@@ -41,8 +41,10 @@ object PlaybackCandidateEngine {
     fun nextUntried(
         candidates: List<ResolvedPlaybackCandidate>,
         attemptedUrls: Set<String>,
-    ): ResolvedPlaybackCandidate? =
-        candidates.firstOrNull { normalizeUrl(it.stream.url) !in attemptedUrls.map(::normalizeUrl).toSet() }
+    ): ResolvedPlaybackCandidate? {
+        val attempted = attemptedUrls.mapTo(mutableSetOf(), ::normalizeUrl)
+        return candidates.firstOrNull { normalizeUrl(it.stream.url) !in attempted }
+    }
 
     private fun normalizeUrl(value: String): String =
         value.trim().substringBefore('#').removeSuffix("/").lowercase()
