@@ -39,23 +39,24 @@ object PlaybackGatewayClient {
         }
 
         val base = normalizeBaseUrl(baseUrl)
-        val payload = JSONObject()
-            .put("title", title)
-            .put("episodeId", episodeId)
-            .put("sources", JSONArray().put(
-                JSONObject()
-                    .put("url", streamUri.toASCIIString())
-                    .put("quality", stream.quality ?: "Auto")
-                    .put("isM3U8", isHls(stream))
-            ))
-            .put("subtitles", JSONArray().apply {
-                stream.subtitles.forEach { subtitle ->
-                    put(JSONObject()
-                        .put("url", subtitle.url)
-                        .put("lang", subtitle.language ?: "und")
-                        .put("label", subtitle.label ?: "Subtitles"))
-                }
-            })
+        val payload = GatewaySessionRequest(
+            title = title,
+            episodeId = episodeId,
+            sources = listOf(
+                GatewaySourceRequest(
+                    url = streamUri.toASCIIString(),
+                    quality = stream.quality ?: "Auto",
+                    isM3U8 = isHls(stream),
+                )
+            ),
+            subtitles = stream.subtitles.map { subtitle ->
+                GatewaySubtitleRequest(
+                    url = subtitle.url,
+                    language = subtitle.language ?: "und",
+                    label = subtitle.label ?: "Subtitles",
+                )
+            },
+        ).toJson()
 
         val connection = (URL("$base/api/sessions").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -78,24 +79,21 @@ object PlaybackGatewayClient {
             }
 
             val json = JSONObject(body)
-            val sources = json.optJSONArray("sources") ?: JSONArray()
-            require(sources.length() > 0) { "Playback service returned no playable source." }
-            val source = sources.getJSONObject(0)
-            val proxyUrl = resolveProxyUrl(base, source.getString("url"))
-            val subtitlesJson = json.optJSONArray("subtitles") ?: JSONArray()
-            val subtitles = (0 until subtitlesJson.length()).mapNotNull { index ->
-                val item = subtitlesJson.optJSONObject(index) ?: return@mapNotNull null
-                val url = item.optString("url").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val parsed = GatewaySessionResponse.parse(json)
+            val source = parsed.sources.firstOrNull()
+                ?: throw IllegalStateException("Playback service returned no playable source.")
+            val proxyUrl = resolveProxyUrl(base, source.url)
+            val subtitles = parsed.subtitles.map { item ->
                 ProviderSubtitle(
-                    url = resolveProxyUrl(base, url),
-                    language = item.optString("lang").takeIf { it.isNotBlank() },
-                    label = item.optString("label").takeIf { it.isNotBlank() },
+                    url = resolveProxyUrl(base, item.url),
+                    language = item.language,
+                    label = item.label,
                 )
             }
             GatewayPlaybackSession(
                 sourceUrl = proxyUrl,
-                isHls = source.optBoolean("isM3U8", isHls(stream)),
-                quality = source.optString("quality").takeIf { it.isNotBlank() },
+                isHls = source.isM3U8,
+                quality = source.quality,
                 subtitles = subtitles,
             )
         } finally {

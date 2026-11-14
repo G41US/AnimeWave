@@ -68,7 +68,14 @@ private val PickTypes = arrayOf(
     "video/*", "application/x-subrip", "text/vtt", "text/x-ssa", "application/octet-stream",
 )
 
-private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L, val requestHeaders: Map<String, String> = emptyMap(), val fallbacks: List<PlayerFallback> = emptyList())
+private data class PlayerLaunch(
+    val items: List<MediaItem>,
+    val startIndex: Int,
+    val startPositionMs: Long = 0L,
+    val requestHeaders: Map<String, String> = emptyMap(),
+    val primaryCandidate: ResolvedPlaybackCandidate? = null,
+    val fallbacks: List<PlayerFallback> = emptyList(),
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -243,58 +250,66 @@ fun AnimeWaveApp() {
         artwork: String?,
     ) {
         scope.launch {
-            val stream = candidate.stream
             val configuredGateway = playbackGatewayUrl.trim()
-            val gateway = if (configuredGateway.isNotBlank()) {
-                try {
+            suspend fun gatewayItem(
+                resolved: ResolvedPlaybackCandidate,
+            ): Pair<MediaItem, Map<String, String>> {
+                val stream = resolved.stream
+                val gateway = if (configuredGateway.isNotBlank()) {
                     PlaybackGatewayClient.createSession(
                         configuredGateway,
-                        "$animeTitle — ${candidate.episode.title}",
-                        candidate.episode.pageUrl,
+                        "$animeTitle — ${resolved.episode.title}",
+                        resolved.episode.pageUrl,
                         stream,
                     )
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    null
-                }
-            } else null
-
-            val playableUrl = gateway?.sourceUrl ?: stream.url
-            val subtitleTracks = gateway?.subtitles?.takeIf { it.isNotEmpty() } ?: stream.subtitles
-            val builder = MediaItem.Builder()
-                .setUri(playableUrl)
-                .setMediaMetadata(mediaInfo(
-                    "$animeTitle — ${candidate.episode.title} · ${stream.providerName}",
-                    artwork,
-                    candidate.episode.pageUrl,
-                ))
-                .setSubtitleConfigurations(SubtitleManager.configurations(subtitleTracks))
-            if (gateway?.isHls == true) builder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
-            else stream.mimeType?.let { builder.setMimeType(it) }
-
-            val fallbackSources = alternatives.map { alternate ->
-                val alternateStream = alternate.stream
-                val alternateItem = MediaItem.Builder()
-                    .setUri(alternateStream.url)
+                } else null
+                val url = gateway?.sourceUrl ?: stream.url
+                val subtitleTracks = gateway?.subtitles?.takeIf { it.isNotEmpty() } ?: stream.subtitles
+                val item = MediaItem.Builder()
+                    .setUri(url)
                     .setMediaMetadata(mediaInfo(
-                        "$animeTitle — ${alternate.episode.title} · ${alternateStream.providerName}",
+                        "$animeTitle — ${resolved.episode.title} · ${stream.providerName}",
                         artwork,
-                        alternate.episode.pageUrl,
+                        resolved.episode.pageUrl,
                     ))
-                    .setSubtitleConfigurations(SubtitleManager.configurations(alternateStream.subtitles))
-                    .apply { alternateStream.mimeType?.let { setMimeType(it) } }
+                    .setSubtitleConfigurations(SubtitleManager.configurations(subtitleTracks))
+                    .apply {
+                        if (gateway?.isHls == true) setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                        else stream.mimeType?.let { setMimeType(it) }
+                    }
                     .build()
-                PlayerFallback(alternateItem, alternateStream.requestHeaders)
+                return item to if (gateway != null) emptyMap() else stream.requestHeaders
             }
-            playing = PlayerLaunch(
-                listOf(builder.build()),
-                0,
-                requestHeaders = if (gateway != null) emptyMap() else stream.requestHeaders,
-                fallbacks = fallbackSources,
-            )
-            if (configuredGateway.isNotBlank() && gateway == null) {
-                toast(context, "Playback gateway unavailable. Trying the authorized stream directly.")
+
+            try {
+                val (primaryItem, primaryHeaders) = gatewayItem(candidate)
+                val fallbackSources = alternatives.mapNotNull { alternate ->
+                    try {
+                        val (item, headers) = gatewayItem(alternate)
+                        PlayerFallback(item, headers, alternate)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                playing = PlayerLaunch(
+                    listOf(primaryItem),
+                    0,
+                    requestHeaders = primaryHeaders,
+                    primaryCandidate = candidate,
+                    fallbacks = fallbackSources,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                toast(
+                    context,
+                    if (configuredGateway.isNotBlank())
+                        "Authorized playback gateway unavailable. No direct connection was attempted."
+                    else
+                        "This authorized source could not be prepared for playback."
+                )
             }
         }
     }
@@ -348,6 +363,7 @@ fun AnimeWaveApp() {
                 startIndex = nowPlaying.startIndex,
                 startPositionMs = nowPlaying.startPositionMs,
                 requestHeaders = nowPlaying.requestHeaders,
+                primaryCandidate = nowPlaying.primaryCandidate,
                 fallbacks = nowPlaying.fallbacks,
                 onExit = { playing = null },
                 onProgress = ::recordPlayback,
@@ -392,7 +408,7 @@ fun AnimeWaveApp() {
                                         else -> {
                                             toast(
                                                 context,
-                                                "No direct playable stream is available for this episode yet. No webpage was opened. Try another episode or use Play your own file."
+                                                "No authorized source configured"
                                             )
                                         }
                                     }

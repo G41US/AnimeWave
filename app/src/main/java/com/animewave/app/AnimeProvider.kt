@@ -49,6 +49,11 @@ interface AnimeProvider {
     suspend fun resolve(episode: ProviderEpisode): ProviderStream? = null
 }
 
+/** Provider contract for integrations that resolve playable, rights-confirmed media streams. */
+interface StreamProvider : AnimeProvider {
+    override suspend fun resolve(episode: ProviderEpisode): ProviderStream?
+}
+
 data class ProviderStatus(
     val providerId: String,
     val providerName: String,
@@ -145,6 +150,9 @@ object ProviderManager {
         require(provider.id.isNotBlank())
         if (adapters.none { it.id == provider.id }) adapters.add(provider)
     }
+
+    /** Registers a stream-capable adapter in the existing provider registry. */
+    fun registerStreamProvider(provider: StreamProvider) = register(provider)
 
     fun unregister(providerId: String) {
         if (providerId != "anilist") adapters.removeAll { it.id == providerId }
