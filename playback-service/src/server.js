@@ -70,6 +70,18 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// Safe operational detail: hostnames are configuration identifiers, not credentials.
+// Never return environment variables, tokens, or upstream URLs from this endpoint.
+app.get("/api/health/detail", (_req, res) => {
+  const expectedHosts = ["commondatastorage.googleapis.com", "test-streams.mux.dev"];
+  res.json({
+    status: "ok",
+    allowedHosts: [...config.allowedHosts],
+    expectedHostChecks: Object.fromEntries(expectedHosts.map(host => [host, config.allowedHosts.includes(host)])),
+    activeSessions: sessionCount()
+  });
+});
+
 app.post("/api/sessions", async (req, res) => {
   try {
     const session = await createSession(req.body);
