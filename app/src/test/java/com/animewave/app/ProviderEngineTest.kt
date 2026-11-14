@@ -47,6 +47,30 @@ class ProviderEngineTest {
         }
     }
 
+    @Test fun discoveryKeepsDistinctEpisodesWhenProviderUsesOneSeriesPageUrl() = runBlocking {
+        val anime = Anime(
+            id = 80, title = "Shared Page Test", cover = null, coverXL = null, banner = null,
+            accent = null, genres = emptyList(), year = null, format = "TV", episodes = 2,
+            score = null, synopsis = "", watchLinks = emptyList(), streamingEpisodes = emptyList(),
+        )
+        val provider = object : AnimeProvider {
+            override val id = "shared-page-test"
+            override val displayName = "Shared Page Test"
+            override suspend fun searchEpisodes(anime: Anime) = listOf(
+                ProviderEpisode(id, displayName, anime.id, "Episode 1", 1, null, "https://example.com/anime/80"),
+                ProviderEpisode(id, displayName, anime.id, "Episode 2", 2, null, "https://example.com/anime/80"),
+            )
+        }
+        ProviderManager.register(provider)
+        try {
+            val result = ProviderManager.discover(anime)
+            assertEquals(2, result.groups.size)
+            assertEquals(setOf(1, 2), result.groups.mapNotNull { it.episodeNumber }.toSet())
+        } finally {
+            ProviderManager.unregister(provider.id)
+        }
+    }
+
     @Test fun normalizesEpisodeTitles() {
         assertEquals("show", EpisodeMatcher.normalize("Show Episode 02"))
         assertEquals("show", EpisodeMatcher.normalize("Show - Ep 2"))
