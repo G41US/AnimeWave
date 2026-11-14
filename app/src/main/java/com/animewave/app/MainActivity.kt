@@ -201,7 +201,7 @@ fun AnimeWaveApp() {
     val detailFocus = remember { FocusRequester() }
 
     val prefs = remember { context.getSharedPreferences("animewave", Context.MODE_PRIVATE) }
-    var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "animepahe") ?: "animepahe") }
+    var preferredSource by remember { mutableStateOf(prefs.getString("preferredSource", "listed") ?: "animepahe") }
     var saved by remember {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
@@ -347,6 +347,8 @@ fun AnimeWaveApp() {
                         providerDiscovery = providerDiscovery.value,
                         progress = continueWatching.mapNotNull { r -> r.key?.let { it to r.progress } }.toMap(),
                         discovering = providerDiscovery.value == null && !providerDiscovery.failed,
+                        providerDiscoveryFailed = providerDiscovery.failed,
+                        onRetryDiscovery = providerDiscovery.retry,
                     )
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
                 }
