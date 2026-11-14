@@ -185,7 +185,18 @@ object ProviderManager {
                     episodeNumber = episode.episodeNumber ?: identity.episodeNumber,
                 )
             }
-            .distinctBy { it.providerId + "|" + it.pageUrl.lowercase() }
+            .distinctBy { episode ->
+                // Catalogue APIs sometimes expose one series page URL for every episode.
+                // Include the parsed episode identity so those distinct episodes survive.
+                val identity = EpisodeMatcher.identity(episode.title)
+                listOf(
+                    episode.providerId,
+                    episode.pageUrl.lowercase(),
+                    episode.seasonNumber ?: identity.seasonNumber ?: 0,
+                    episode.episodeNumber ?: identity.episodeNumber ?: 0,
+                    EpisodeMatcher.normalize(episode.title),
+                ).joinToString("|")
+            }
         val groups = episodes.groupBy { ep ->
             val season = ep.seasonNumber?.toString() ?: "unknown"
             val number = ep.episodeNumber
