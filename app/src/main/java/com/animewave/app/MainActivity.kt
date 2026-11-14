@@ -428,14 +428,14 @@ fun AnimeWaveApp() {
                         },
                         // Stable MP4 compatibility smoke test, shown as a Home card.
                         onPlayClassic = {
-                            val testUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                            val testUrl = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
                             val testItem = MediaItem.Builder()
                                 .setUri(testUrl)
                                 .setMimeType("video/mp4")
                                 .setMediaMetadata(
                                     androidx.media3.common.MediaMetadata.Builder()
                                         .setTitle("Big Buck Bunny — Player Compatibility Test")
-                                        .setArtist("Blender Foundation · Creative Commons Attribution")
+                                        .setArtist("Test Videos UK · Big Buck Bunny sample")
                                         .build()
                                 )
                                 .build()
