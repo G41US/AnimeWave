@@ -4,6 +4,9 @@ import axios from "axios";
 import { config } from "./config.js";
 import { validateStreamUrl, pinnedLookup } from "./url-policy.js";
 import { createSession, getSession, getAsset, publicSession, registerAsset, sessionCount } from "./session-store.js";
+import { resolveWithProvider, registerMuxTestProvider } from "./resolver.js";
+
+if (process.env.ENABLE_MUX_HLS_TEST_PROVIDER === "true") registerMuxTestProvider();
 
 const app = express();
 app.disable("x-powered-by");
@@ -80,6 +83,30 @@ app.get("/api/health/detail", (_req, res) => {
     expectedHostChecks: Object.fromEntries(expectedHosts.map(host => [host, config.allowedHosts.includes(host)])),
     activeSessions: sessionCount()
   });
+});
+
+app.post("/api/providers/:providerId/resolve", async (req, res) => {
+  try {
+    const resolved = await resolveWithProvider(req.params.providerId, req.body || {});
+    if (resolved.rightsConfirmed !== true) throw new Error("AUTHORIZED_RIGHTS_REQUIRED");
+    const session = await createSession({
+      title: req.body?.title || resolved.providerName || "AnimeWave test stream",
+      episodeId: req.body?.episodeId || "provider-test",
+      sources: [{
+        url: resolved.url,
+        quality: resolved.quality,
+        isM3U8: resolved.isM3U8
+      }]
+    });
+    res.status(201).json({
+      provider: resolved.providerName,
+      rightsConfirmed: true,
+      session
+    });
+  } catch (error) {
+    const status = error.message === "PLAYBACK_PROVIDER_NOT_FOUND" ? 404 : 422;
+    fail(res, error, status);
+  }
 });
 
 app.post("/api/sessions", async (req, res) => {
