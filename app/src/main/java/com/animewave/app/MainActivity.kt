@@ -68,7 +68,14 @@ private val PickTypes = arrayOf(
     "video/*", "application/x-subrip", "text/vtt", "text/x-ssa", "application/octet-stream",
 )
 
-private data class PlayerLaunch(val items: List<MediaItem>, val startIndex: Int, val startPositionMs: Long = 0L, val requestHeaders: Map<String, String> = emptyMap(), val fallbacks: List<PlayerFallback> = emptyList())
+private data class PlayerLaunch(
+    val items: List<MediaItem>,
+    val startIndex: Int,
+    val startPositionMs: Long = 0L,
+    val requestHeaders: Map<String, String> = emptyMap(),
+    val primaryCandidate: ResolvedPlaybackCandidate? = null,
+    val fallbacks: List<PlayerFallback> = emptyList(),
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -279,7 +286,7 @@ fun AnimeWaveApp() {
                 val fallbackSources = alternatives.mapNotNull { alternate ->
                     try {
                         val (item, headers) = gatewayItem(alternate)
-                        PlayerFallback(item, headers)
+                        PlayerFallback(item, headers, alternate)
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
@@ -290,6 +297,7 @@ fun AnimeWaveApp() {
                     listOf(primaryItem),
                     0,
                     requestHeaders = primaryHeaders,
+                    primaryCandidate = candidate,
                     fallbacks = fallbackSources,
                 )
             } catch (cancelled: CancellationException) {
@@ -355,6 +363,7 @@ fun AnimeWaveApp() {
                 startIndex = nowPlaying.startIndex,
                 startPositionMs = nowPlaying.startPositionMs,
                 requestHeaders = nowPlaying.requestHeaders,
+                primaryCandidate = nowPlaying.primaryCandidate,
                 fallbacks = nowPlaying.fallbacks,
                 onExit = { playing = null },
                 onProgress = ::recordPlayback,
