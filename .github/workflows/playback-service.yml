@@ -1,0 +1,32 @@
+name: Playback service CI
+
+on:
+  push:
+    branches: [main, feat/authorized-playback-layer]
+    paths:
+      - "playback-service/**"
+      - ".github/workflows/playback-service.yml"
+  pull_request:
+    paths:
+      - "playback-service/**"
+      - ".github/workflows/playback-service.yml"
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: playback-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Check backend syntax
+        run: npm run check
+      - name: Run tests
+        run: npm test
+      - name: Build React player
+        run: npm run web:build
