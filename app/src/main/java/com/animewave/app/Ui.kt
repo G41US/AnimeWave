@@ -1023,7 +1023,7 @@ fun DetailContent(
         )
     }
     val sourceCaption: @Composable () -> Unit = {
-        Text("Episode source: ${selectedSource.displayName}", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text("Browse source: ${selectedSource.displayName} · catalogue episode links are metadata, not video streams", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 
     providerChoices?.let { choices ->
