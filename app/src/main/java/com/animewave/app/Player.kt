@@ -85,7 +85,11 @@ private fun subtitleMime(name: String) = when (extension(name)) {
     else -> MimeTypes.APPLICATION_SUBRIP
 }
 
-data class PlayerFallback(val item: MediaItem, val requestHeaders: Map<String, String> = emptyMap())
+data class PlayerFallback(
+    val item: MediaItem,
+    val requestHeaders: Map<String, String> = emptyMap(),
+    val candidate: ResolvedPlaybackCandidate,
+)
 
 fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
     .setUri(video.ref)
@@ -107,6 +111,7 @@ fun LocalEpisode<Uri>.toMediaItem(): MediaItem = MediaItem.Builder()
 fun PlayerScreen(
     items: List<MediaItem>, startIndex: Int, startPositionMs: Long = 0L,
     requestHeaders: Map<String, String> = emptyMap(),
+    primaryCandidate: ResolvedPlaybackCandidate? = null,
     fallbacks: List<PlayerFallback> = emptyList(),
     onExit: () -> Unit,
     onProgress: (uri: String, title: String, positionMs: Long, durationMs: Long, artwork: String?, key: String?) -> Unit = { _, _, _, _, _, _ -> },
@@ -204,11 +209,19 @@ fun PlayerScreen(
     LaunchedEffect(controls) { if (!controls) runCatching { rootFocus.requestFocus() } }
 
     DisposableEffect(player) {
-        var nextFallback = 0
+        val attemptedSources = mutableSetOf<String>()
+        primaryCandidate?.stream?.url?.let(attemptedSources::add)
         val listener = object : Player.Listener {
             override fun onPlayerError(e: PlaybackException) {
-                val fallback = fallbacks.getOrNull(nextFallback++)
+                val nextCandidate = PlaybackCandidateEngine.nextUntried(
+                    fallbacks.map { it.candidate },
+                    attemptedSources,
+                )
+                val fallback = nextCandidate?.let { candidate ->
+                    fallbacks.firstOrNull { it.candidate == candidate }
+                }
                 if (fallback != null) {
+                    attemptedSources.add(fallback.candidate.stream.url)
                     val resumeAt = player.currentPosition.coerceAtLeast(0L)
                     val fallbackHttpFactory = DefaultHttpDataSource.Factory()
                         .setAllowCrossProtocolRedirects(false)
