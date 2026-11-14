@@ -1552,7 +1552,7 @@ private fun ClassicCard(onPlay: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("PLAYS IN ANIMEWAVE", fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, style = jakarta(brush = Brand))
             Spacer(Modifier.height(4.dp))
-            Text("My Big Emergency", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Big Buck Bunny test", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Sanae Yamamoto  ·  1936", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
