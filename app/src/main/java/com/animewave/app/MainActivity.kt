@@ -485,7 +485,23 @@ fun AnimeWaveApp() {
                             playbackGatewayUrl = playbackGatewayUrl,
                             onPlaybackGatewayUrlChange = { value ->
                                 playbackGatewayUrl = value
-                                prefs.edit().putString("playbackGatewayUrl", value).apply()
+                            },
+                            onSavePlaybackGatewayUrl = { value ->
+                                val normalized = runCatching {
+                                    if (value.isBlank()) "" else PlaybackGatewayClient.normalizeBaseUrl(value)
+                                }.getOrElse { error ->
+                                    toast(context, error.message ?: "Enter a valid HTTPS playback service URL.")
+                                    null
+                                }
+                                if (normalized != null) {
+                                    val stored = prefs.edit().putString("playbackGatewayUrl", normalized).commit()
+                                    if (stored) {
+                                        playbackGatewayUrl = normalized
+                                        toast(context, "Playback service saved.")
+                                    } else {
+                                        toast(context, "Could not save playback service. Try again.")
+                                    }
+                                }
                             },
                             onInstall = { apk ->
                                 if (!Updates.install(context, apk)) toast(context, "Allow AnimeWave to install apps, then tap Install update again.")
