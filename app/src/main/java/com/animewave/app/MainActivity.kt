@@ -333,11 +333,11 @@ fun AnimeWaveApp() {
                                             playing = PlayerLaunch(listOf(builder.build()), 0, requestHeaders = resolved.requestHeaders)
                                         }
                                         candidates.size > 1 -> playbackChoices = candidates
-                                        preferredSource == "listed" -> openLink(context, ep.url)
                                         else -> {
-                                            val source = AnimeSourceRegistry.byId(preferredSource)
-                                            toast(context, "Searching " + source.displayName + " for " + anime.title + " — " + ep.title)
-                                            openLink(context, AnimeSourceRegistry.searchUrl(preferredSource, anime.title, ep.title))
+                                            toast(
+                                                context,
+                                                "No direct playable stream is available for this episode yet. No webpage was opened. Try another episode or use Play your own file."
+                                            )
                                         }
                                     }
                                 }
