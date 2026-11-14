@@ -94,6 +94,7 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
+        if (BuildConfig.DEBUG) ProviderManager.registerStreamProvider(TestStreamProvider())
         setContent { AnimeWaveApp() }
     }
 }
@@ -408,7 +409,7 @@ fun AnimeWaveApp() {
                                         else -> {
                                             toast(
                                                 context,
-                                                "No authorized source configured"
+                                                "No playable provider returned a stream. Metadata providers (AniList/Kitsu/Jikan) do not supply video. Register an authorized StreamProvider or add an entry to OfficialPlaybackRegistry."
                                             )
                                         }
                                     }
