@@ -102,6 +102,7 @@ class PlaybackCandidateEngineTest {
             val candidates = PlaybackCandidateEngine.resolve(group)
             assertEquals(1, candidates.size)
             assertEquals(hlsUrl, candidates.single().stream.url)
+            assertNull(PlaybackCandidateEngine.nextUntried(candidates, setOf(hlsUrl)))
         } finally {
             ProviderManager.unregister(nullProvider.id)
             ProviderManager.unregister(validProvider.id)
