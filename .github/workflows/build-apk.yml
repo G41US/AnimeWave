@@ -43,7 +43,7 @@ jobs:
       - name: Run unit tests and build release APK
         env:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-        run: gradle testDebugUnitTest --tests "com.animewave.app.ParsingTest" --tests "com.animewave.app.ProviderEngineTest" assembleRelease
+        run: gradle testDebugUnitTest --tests "com.animewave.app.ParsingTest" --tests "com.animewave.app.ProviderEngineTest" --tests "com.animewave.app.PlaybackCandidateEngineTest" assembleRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
