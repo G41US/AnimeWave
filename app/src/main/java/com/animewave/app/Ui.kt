@@ -84,6 +84,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
@@ -208,7 +210,7 @@ fun Art(url: String?, modifier: Modifier, description: String? = null) {
 @Composable
 fun Logo(size: Int = 24) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Image(painterResource(R.drawable.app_logo), contentDescription = null, modifier = Modifier.size((size * 1.9).dp))
+        Image(painterResource(R.drawable.intro_emblem), contentDescription = null, modifier = Modifier.size((size * 1.7).dp))
         Spacer(Modifier.width(10.dp))
         Text("ANIME", fontSize = size.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = Color.White)
         Text("WAVE", fontSize = size.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, style = jakarta(brush = Brand))
@@ -516,11 +518,17 @@ fun Chip(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Pill(text: String, brush: Brush = Brand) {
-    Text(
-        text, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, color = Color.White,
-        modifier = Modifier.background(brush, RoundedCornerShape(50)).padding(horizontal = 11.dp, vertical = 5.dp),
-    )
+private fun Pill(text: String) {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(Ink.copy(alpha = .45f))
+            .border(1.dp, Color.White.copy(alpha = .22f), RoundedCornerShape(50))
+            .padding(start = 9.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(7.dp).background(Brand, CircleShape))
+        Spacer(Modifier.width(7.dp))
+        Text(text, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp, color = Color.White)
+    }
 }
 
 @Composable
@@ -590,7 +598,7 @@ fun Hero(
                     .padding(start = gutter, end = gutter, bottom = 44.dp)
                     .fillMaxWidth(.52f)
             ) {
-                Pill("#${index + 1} TRENDING")
+                Pill("No. ${index + 1} TRENDING TODAY")
                 Spacer(Modifier.height(14.dp))
                 Text(
                     anime.title, fontSize = 44.sp, lineHeight = 48.sp, fontWeight = FontWeight.ExtraBold,
@@ -633,7 +641,7 @@ fun Hero(
             Modifier.align(Alignment.BottomCenter).enterUp(0).fillMaxWidth().padding(start = gutter, end = gutter, bottom = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Pill("#${index + 1} TRENDING")
+            Pill("No. ${index + 1} TRENDING TODAY")
             Spacer(Modifier.height(12.dp))
             Text(
                 anime.title, fontSize = 31.sp, lineHeight = 35.sp, fontWeight = FontWeight.ExtraBold,
@@ -684,7 +692,7 @@ fun HeroPlaceholder(failed: Boolean, onRetry: () -> Unit) {
 // ---------- Cards & rows ----------
 
 @Composable
-private fun Poster(anime: Anime, focused: Boolean, modifier: Modifier, showScore: Boolean = true) {
+private fun Poster(anime: Anime, focused: Boolean, modifier: Modifier, showBadges: Boolean = true) {
     val shape = RoundedCornerShape(14.dp)
     Box(
         modifier.aspectRatio(2f / 3f)
@@ -695,14 +703,20 @@ private fun Poster(anime: Anime, focused: Boolean, modifier: Modifier, showScore
         Art(anime.cover, Modifier.fillMaxSize(), anime.title)
         // Soft inner vignette so bright covers still sit in the dark UI.
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.62f to Color.Transparent, 1f to Ink.copy(alpha = .55f))))
-        if (showScore) anime.score?.let { ScoreBadge(it, Modifier.align(Alignment.TopEnd).padding(7.dp)) }
-        if (hasNewEpisode(anime)) {
-            Text(
-                "NEW EP", fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = Color.White,
-                modifier = Modifier.align(Alignment.TopStart).padding(7.dp).background(Brand, RoundedCornerShape(50)).padding(horizontal = 7.dp, vertical = 3.dp),
-            )
+        if (showBadges && hasNewEpisode(anime)) {
+            Row(
+                Modifier.align(Alignment.TopStart).padding(7.dp)
+                    .clip(RoundedCornerShape(50)).background(Ink.copy(alpha = .7f))
+                    .border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(50))
+                    .padding(start = 6.dp, end = 8.dp, top = 3.dp, bottom = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(5.dp).background(Pink, CircleShape))
+                Spacer(Modifier.width(5.dp))
+                Text("NEW EP", fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
+            }
         }
-        airingLabel(anime)?.let { label ->
+        if (showBadges) airingLabel(anime)?.let { label ->
             Text(
                 label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1,
                 modifier = Modifier.align(Alignment.BottomStart).padding(7.dp)
@@ -730,7 +744,15 @@ fun PosterCard(anime: Anime, width: Dp, onClick: () -> Unit) {
             color = if (focused) Color.White else Soft, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(3.dp))
-        Text(listOfNotNull(anime.year?.toString(), anime.genres.firstOrNull()).joinToString("  ·  "), fontSize = 11.5.sp, color = Muted, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            anime.score?.let {
+                Icon(Icons.Filled.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(11.dp))
+                Spacer(Modifier.width(3.dp))
+                Text(scoreText(it), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Soft)
+                Text("  ·  ", fontSize = 11.5.sp, color = Muted)
+            }
+            Text(listOfNotNull(anime.year?.toString(), anime.genres.firstOrNull()).joinToString("  ·  "), fontSize = 11.5.sp, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -739,23 +761,48 @@ private fun RankedCard(rank: Int, anime: Anime, onClick: () -> Unit) {
     val wide = LocalWide.current
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.08f else 1f, label = "rank")
+    val posterW = if (wide) 158.dp else 124.dp
+    val size = if (wide) 190.sp else 150.sp
     Row(
         Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.hasFocus }
             .tappable(onClick),
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text(
-            "$rank",
-            fontSize = if (wide) 150.sp else 116.sp, lineHeight = if (wide) 150.sp else 116.sp,
-            fontWeight = FontWeight.ExtraBold, letterSpacing = (-8).sp,
-            style = jakarta(
-                brush = if (focused) Brand else Brush.verticalGradient(listOf(Color.White.copy(alpha = .75f), Color.White.copy(alpha = .12f))),
-                drawStyle = Stroke(width = 7f, join = StrokeJoin.Round),
-            ).copy(platformStyle = PlatformTextStyle(includeFontPadding = false)),
-            modifier = Modifier.offset(x = 16.dp, y = 16.dp),
-        )
-        Poster(anime, focused, Modifier.width(if (wide) 150.dp else 116.dp), showScore = false)
+        RankNumeral(rank, size, focused, overlap = if (wide) 30.dp else 24.dp)
+        Poster(anime, focused, Modifier.width(posterW), showBadges = false)
+    }
+}
+
+/**
+ * Big Top 10 numeral: a solid chrome-to-shadow fill, thickened with a matching stroke, and a
+ * bright rim. It tucks [overlap] under the poster so the poster sits on top of it.
+ */
+@Composable
+private fun RankNumeral(rank: Int, size: androidx.compose.ui.unit.TextUnit, focused: Boolean, overlap: Dp) {
+    val chrome = if (focused) Brush.verticalGradient(listOf(Color.White, Violet, Pink))
+    else Brush.verticalGradient(0f to Color.White, .42f to Color(0xFFDCD6F5), .78f to Color(0xFF6E6891), 1f to Color(0xFF221F35))
+    val rim = Brush.verticalGradient(listOf(Color.White.copy(alpha = .95f), Color.White.copy(alpha = .05f)))
+    val base = jakarta().copy(
+        fontSize = size, lineHeight = size, fontWeight = FontWeight.ExtraBold,
+        letterSpacing = (-size.value * .09f).sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
+    val tuck = with(LocalDensity.current) { overlap.roundToPx() }
+    Box(
+        Modifier
+            // Report a narrower width so the poster overlaps the numeral's right edge.
+            .layout { m, c ->
+                val p = m.measure(c)
+                layout((p.width - tuck).coerceAtLeast(0), p.height) { p.place(0, 0) }
+            }
+            .graphicsLayer { translationY = size.toPx() * .1f },
+    ) {
+        val text = "$rank"
+        // Weight: the fill plus a stroke of the same gradient makes the glyph heavier than ExtraBold.
+        Text(text, style = base.copy(brush = chrome))
+        Text(text, style = base.copy(brush = chrome, drawStyle = Stroke(width = 9f, join = StrokeJoin.Round)))
+        Text(text, style = base.copy(brush = rim, drawStyle = Stroke(width = 2.5f, join = StrokeJoin.Round)))
     }
 }
 
@@ -803,10 +850,10 @@ fun AnimeRow(title: String, loaded: Loaded<List<Anime>>, empty: String = "Nothin
 @Composable
 fun Top10Row(loaded: Loaded<List<Anime>>, onPick: (Anime) -> Unit) {
     SectionTitle("Top 10 Today")
-    LoadState(loaded, "Nothing found.", skeleton = { RowSkeleton(if (LocalWide.current) 150.dp else 116.dp) }) { list ->
+    LoadState(loaded, "Nothing found.", skeleton = { RowSkeleton(if (LocalWide.current) 158.dp else 124.dp) }) { list ->
         LazyRow(
-            contentPadding = PaddingValues(start = gutter - 12.dp, end = gutter, top = 10.dp, bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (LocalWide.current) 12.dp else 8.dp),
+            contentPadding = PaddingValues(start = gutter - 6.dp, end = gutter, top = 10.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (LocalWide.current) 18.dp else 12.dp),
         ) {
             itemsIndexed(list.take(10), key = { _, a -> a.id }) { i, a -> RankedCard(i + 1, a) { onPick(a) } }
         }
@@ -1534,7 +1581,7 @@ private fun ClassicCard(onPlay: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.03f else 1f, label = "classic")
     val shape = RoundedCornerShape(20.dp)
-    SectionTitle("Classic anime", caption = "Public domain")
+    SectionTitle("Player test", caption = "Open movie")
     Row(
         Modifier.padding(horizontal = gutter).widthIn(max = 720.dp).fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
@@ -1553,8 +1600,8 @@ private fun ClassicCard(onPlay: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("PLAYS IN ANIMEWAVE", fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, style = jakarta(brush = Brand))
             Spacer(Modifier.height(4.dp))
-            Text("Big Buck Bunny test", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("Sanae Yamamoto  ·  1936", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Big Buck Bunny", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Blender Foundation  ·  2008  ·  CC BY", fontSize = 12.5.sp, color = Soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -1587,7 +1634,7 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
     Column(Modifier.padding(horizontal = gutter).widthIn(max = 720.dp)) {
         SettingsCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(painterResource(R.drawable.app_logo), contentDescription = null, modifier = Modifier.size(64.dp))
+                Image(painterResource(R.drawable.intro_emblem), contentDescription = null, modifier = Modifier.size(56.dp))
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text("AnimeWave", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.4).sp)
@@ -1647,6 +1694,12 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
                 singleLine = true,
                 label = { Text("HTTPS service URL") },
                 placeholder = { Text("https://your-playback-service.example") },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Violet, unfocusedBorderColor = Hairline,
+                    focusedContainerColor = Glass, unfocusedContainerColor = Glass,
+                    focusedLabelColor = Violet, unfocusedLabelColor = Muted, cursorColor = Violet,
+                ),
             )
             Spacer(Modifier.height(12.dp))
             PrimaryButton("Save playback service", Icons.Filled.Check, onClick = { onSavePlaybackGatewayUrl(playbackGatewayDraft) })
