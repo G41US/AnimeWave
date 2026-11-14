@@ -45,4 +45,16 @@ class TestStreamProviderTest {
 
         assertNull(stream)
     }
+    @Test
+    fun searchEpisodesReturnsDiscoveryShape() = runBlocking {
+        val anime = Anime(
+            id = 1, title = "Test", cover = null, coverXL = null, banner = null,
+            accent = null, genres = emptyList(), year = null, format = "TV", episodes = 1,
+            score = null, synopsis = "", watchLinks = emptyList(), streamingEpisodes = emptyList()
+        )
+        val ep = TestStreamProvider().searchEpisodes(anime).single()
+        assertEquals("test-mux", ep.providerId)
+        assertEquals("https://test-streams.mux.dev/", ep.pageUrl)
+        assertEquals(1, ep.episodeNumber)
+    }
 }
