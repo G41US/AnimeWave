@@ -347,6 +347,8 @@ fun AnimeWaveApp() {
                         providerDiscovery = providerDiscovery.value,
                         progress = continueWatching.mapNotNull { r -> r.key?.let { it to r.progress } }.toMap(),
                         discovering = providerDiscovery.value == null && !providerDiscovery.failed,
+                        providerDiscoveryFailed = providerDiscovery.failed,
+                        onRetryDiscovery = providerDiscovery.retry,
                     )
                     Spacer(Modifier.navigationBarsPadding().height(24.dp))
                 }
