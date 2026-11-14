@@ -586,6 +586,7 @@ fun Hero(
             }
             Column(
                 Modifier.align(Alignment.BottomStart)
+                    .enterUp(0)
                     .padding(start = gutter, end = gutter, bottom = 44.dp)
                     .fillMaxWidth(.52f)
             ) {
@@ -629,7 +630,7 @@ fun Hero(
                 .background(Brush.radialGradient(listOf(vivid(anime.accent).copy(alpha = .30f), Color.Transparent)))
         )
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = gutter, end = gutter, bottom = 18.dp),
+            Modifier.align(Alignment.BottomCenter).enterUp(0).fillMaxWidth().padding(start = gutter, end = gutter, bottom = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Pill("#${index + 1} TRENDING")
@@ -1460,12 +1461,12 @@ fun HomeContent(
     // Rows tuck up into the hero's fade for a layered look.
     Column(Modifier.offset(y = if (LocalWide.current) (-40).dp else (-4).dp)) {
         // Sections rise in one after another the first time Home appears.
-        Column(Modifier.enterUp(0)) { ContinueWatchingSection(continueWatching, onResume) }
-        Column(Modifier.enterUp(1)) { Top10Row(home.map { it["trending"].orEmpty() }, onPick) }
-        if (onPlayClassic != null) Column(Modifier.enterUp(2)) { ClassicCard(onPlayClassic) }
-        Column(Modifier.enterUp(3)) { AnimeRow("Airing This Season", home.map { it["airing"].orEmpty() }, onPick = onPick) }
-        Column(Modifier.enterUp(4)) { AnimeRow("Action & Adventure", home.map { it["action"].orEmpty() }, onPick = onPick) }
-        Column(Modifier.enterUp(5)) { AnimeRow("All-Time Popular", home.map { it["popular"].orEmpty() }, onPick = onPick) }
+        Column(Modifier.enterUp(1)) { ContinueWatchingSection(continueWatching, onResume) }
+        Column(Modifier.enterUp(2)) { Top10Row(home.map { it["trending"].orEmpty() }, onPick) }
+        if (onPlayClassic != null) Column(Modifier.enterUp(3)) { ClassicCard(onPlayClassic) }
+        Column(Modifier.enterUp(4)) { AnimeRow("Airing This Season", home.map { it["airing"].orEmpty() }, onPick = onPick) }
+        Column(Modifier.enterUp(5)) { AnimeRow("Action & Adventure", home.map { it["action"].orEmpty() }, onPick = onPick) }
+        Column(Modifier.enterUp(6)) { AnimeRow("All-Time Popular", home.map { it["popular"].orEmpty() }, onPick = onPick) }
         Text(
             "Anime info from AniList.co  ·  Watch opens official streaming services",
             color = Muted.copy(alpha = .7f), fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 28.dp),
