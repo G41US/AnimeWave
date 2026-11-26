@@ -308,7 +308,8 @@ fun PosterRow(row: Row, onOpen: (Title) -> Unit) {
 fun RankedCard(rank: Int, t: Title, onClick: () -> Unit) {
     val wide = LocalWide.current
     var focused by remember { mutableStateOf(false) }
-    Row(Modifier.onFocusChanged { focused = it.hasFocus }.clickable(interactionSource = null, indication = null, onClick = onClick), verticalAlignment = Alignment.Bottom) {
+    Column(Modifier.onFocusChanged { focused = it.hasFocus }.clickable(interactionSource = null, indication = null, onClick = onClick)) {
+    Row(verticalAlignment = Alignment.Bottom) {
         val size = if (wide) 176.sp else 120.sp
         val chrome = Brush.verticalGradient(0f to Color.White, .55f to Color(0xFFE4DEFF), 1f to Color(0xFF8F86C2))
         Box(Modifier.offset(x = 14.dp, y = 16.dp)) {
@@ -318,6 +319,14 @@ fun RankedCard(rank: Int, t: Title, onClick: () -> Unit) {
             Text(rank.toString(), fontSize = size, lineHeight = size, fontWeight = FontWeight.Black, letterSpacing = (-8).sp, style = jakarta(chrome))
         }
         Poster(t, Modifier.width(if (wide) 168.dp else 112.dp).lift(focused, RoundedCornerShape(12.dp)))
+    }
+    // The title under its poster, lined up with the artwork (not the numeral).
+    Row {
+        Spacer(Modifier.width(if (wide) 106.dp else 72.dp))
+        Text(t.name, fontSize = if (wide) 15.sp else 13.sp, lineHeight = if (wide) 19.sp else 17.sp, fontWeight = FontWeight.SemiBold,
+            color = if (focused) Color.White else Soft, style = jakarta(), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 10.dp).width(if (wide) 168.dp else 112.dp))
+    }
     }
 }
 
@@ -401,7 +410,7 @@ fun Hero(items: List<Title>, saved: (Title) -> Boolean, onPlay: (Title) -> Unit,
             }
         }
         val t = items[index]
-        Column(Modifier.align(Alignment.BottomStart).padding(start = if (wide) 48.dp else Gutter, end = Gutter, bottom = 18.dp)
+        Column(Modifier.align(Alignment.BottomStart).padding(start = Gutter, end = Gutter, bottom = 18.dp)
             .then(if (wide) Modifier.width(560.dp) else Modifier).enterUp()) {
             val logo = arts[t.key]?.logo
             val tvx = LocalTv.current

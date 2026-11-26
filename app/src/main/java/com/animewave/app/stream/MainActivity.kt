@@ -177,7 +177,8 @@ fun App(openRequest: androidx.compose.runtime.MutableState<Title?>) {
     val base = androidx.compose.ui.platform.LocalDensity.current
     val density = if (isTv) androidx.compose.ui.unit.Density(base.density * 1.15f, base.fontScale) else base
     val dir = if (I18n.rtl) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
-    CompositionLocalProvider(LocalWide provides wide, LocalTv provides isTv, androidx.compose.ui.platform.LocalDensity provides density,
+    @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+    CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides PlainScroll, LocalWide provides wide, LocalTv provides isTv, androidx.compose.ui.platform.LocalDensity provides density,
         androidx.compose.ui.platform.LocalLayoutDirection provides dir) {
     // First launch: name, language and subtitles before anything loads, so it all comes in the right language.
     if (!I18n.setupDone) {
@@ -207,7 +208,7 @@ fun App(openRequest: androidx.compose.runtime.MutableState<Title?>) {
         var railOpen by remember { mutableStateOf(false) }
         Box(Modifier.fillMaxSize().background(Ink)) {
             // TV: pages sit to the right of the left menu; the clock heads each page.
-            Box(if (isTv) Modifier.fillMaxSize().padding(start = TvRailWidth) else Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize()) {
             CompositionLocalProvider(LocalTopBar provides if (isTv) ({ TvHeader() }) else null) {
             AnimatedContent(top ?: tab, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) }, label = "screen") { s ->
                 when (s) {

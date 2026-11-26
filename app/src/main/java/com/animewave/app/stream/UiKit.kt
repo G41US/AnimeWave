@@ -56,7 +56,12 @@ val Glass = Color.White.copy(alpha = .09f)
 val Hairline = Color.White.copy(alpha = .12f)
 val Brand = Brush.linearGradient(listOf(Violet, Pink))
 /** Page margin: roomier on TV so everything lines up with the hero. */
-val Gutter: androidx.compose.ui.unit.Dp @androidx.compose.runtime.Composable get() = if (LocalWide.current) 48.dp else 18.dp
+val Gutter: androidx.compose.ui.unit.Dp @androidx.compose.runtime.Composable get() = when {
+    // TV: pages run under the menu (artwork shows behind its icons), so text starts clear of it.
+    LocalTv.current -> TvRailWidth + 40.dp
+    LocalWide.current -> 48.dp
+    else -> 18.dp
+}
 
 val Jakarta = FontFamily(
     Font(R.font.jakarta_regular, FontWeight.Normal),
@@ -255,3 +260,10 @@ fun NetImage(
     if (painter != null) androidx.compose.foundation.Image(painter, contentDescription, modifier, alignment, contentScale)
     else coil.compose.AsyncImage(model, contentDescription, modifier, alignment = alignment, contentScale = contentScale)
 }
+
+/**
+ * Scroll just enough to show what the remote moved to. Android TV's default pulls the focused item
+ * to a third of the way down, which cut off the top of pages (the banner, setup screens).
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+val PlainScroll = object : androidx.compose.foundation.gestures.BringIntoViewSpec {}

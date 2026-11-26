@@ -49,8 +49,9 @@ fun TvRail(tab: Tab, top: Screen?, onTab: (Tab) -> Unit, onDownloads: () -> Unit
     )
     Box(
         Modifier.fillMaxHeight().width(w)
+            // Closed: just the icons over the artwork. Open: a dark panel so the labels read.
             .background(if (open) Brush.horizontalGradient(0f to Ink, .72f to Ink.copy(alpha = .94f), 1f to Color.Transparent)
-                else Brush.horizontalGradient(listOf(Ink, Ink.copy(alpha = .0f))))
+                else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)))
             .onFocusChanged { onOpen(it.hasFocus) },
     ) {
         Column(Modifier.fillMaxSize().padding(top = 84.dp, bottom = 26.dp)) {

@@ -273,7 +273,7 @@ fun DetailsScreen(title: Title, store: Store, onOpen: (Title) -> Unit, onPerson:
                 if (image != null) NetImage(image, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().kenBurns())
                 if (wide) Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Ink.copy(alpha = .85f), .6f to Color.Transparent)))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Ink.copy(alpha = .4f), .35f to Color.Transparent, .7f to Ink.copy(alpha = .7f), 1f to Ink)))
-                Column(Modifier.align(Alignment.BottomStart).padding(horizontal = if (wide) 48.dp else Gutter).enterUp()) {
+                Column(Modifier.align(Alignment.BottomStart).padding(horizontal = Gutter).enterUp()) {
                     if (d?.logo != null) NetImage(Tmdb.img(d.logo, "w500"), t.name, contentScale = ContentScale.Fit,
                         alignment = Alignment.BottomStart, modifier = Modifier.width(260.dp).height(84.dp))
                     else Text(t.name, fontSize = 32.sp, lineHeight = 36.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp, color = Color.White, style = jakarta())
@@ -290,7 +290,7 @@ fun DetailsScreen(title: Title, store: Store, onOpen: (Title) -> Unit, onPerson:
                 val t = d.title
                 item(key = "actions") {
                     val wide = LocalWide.current
-                    Column(Modifier.padding(horizontal = if (wide) 48.dp else Gutter).padding(top = 18.dp).then(if (wide) Modifier.widthIn(max = 720.dp) else Modifier)) {
+                    Column(Modifier.padding(horizontal = Gutter).padding(top = 18.dp).then(if (wide) Modifier.widthIn(max = 720.dp) else Modifier)) {
                         val label = when {
                             t.kind == Kind.TV && last != null -> "Resume Episode ${last.episode}"
                             t.kind == Kind.TV -> "Play Episode 1"
@@ -351,7 +351,7 @@ fun DetailsScreen(title: Title, store: Store, onOpen: (Title) -> Unit, onPerson:
 private fun EpisodeList(show: Title, season: Int, last: Progress?, onPlay: (Int) -> Unit) {
     val (state, retry) = load(show.id to season) { Tmdb.episodes(show.id, season) }
     val wide = LocalWide.current
-    Column(Modifier.padding(horizontal = if (wide) 48.dp else Gutter).then(if (wide) Modifier.widthIn(max = 900.dp) else Modifier)) {
+    Column(Modifier.padding(horizontal = Gutter).then(if (wide) Modifier.widthIn(max = 900.dp) else Modifier)) {
         when (val s = state) {
             Load.Loading -> repeat(3) { Box(Modifier.padding(vertical = 6.dp).fillMaxWidth().height(78.dp).shimmer()) }
             is Load.Failed -> Failed(retry)
