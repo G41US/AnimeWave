@@ -1679,12 +1679,6 @@ fun SettingsScreen(version: String, state: UpdateState, onCheck: () -> Unit, onD
                 },
                 fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Color.White,
             )
-            val notes = when (state) {
-                is UpdateState.Available -> state.info.notes
-                is UpdateState.Ready -> state.info.notes
-                else -> ""
-            }
-            if (notes.isNotBlank()) Text("What's new: $notes", color = Soft, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
             if (state is UpdateState.Downloading) {
                 Spacer(Modifier.height(14.dp))
                 LinearProgressIndicator(
