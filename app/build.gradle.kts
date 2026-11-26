@@ -6,7 +6,7 @@ plugins {
 }
 android {
     namespace = "com.animewave.app"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.animewave.app"
         minSdk = 23
@@ -14,6 +14,8 @@ android {
         // Every cloud build gets a higher number so phones and TVs see it as an update.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0.$versionCode"
+        // Optional subtitle service key (CI secret WYZIE_API_KEY); without it subtitles come from the stream service.
+        buildConfigField("String", "WYZIE_KEY", "\"${System.getenv("WYZIE_API_KEY") ?: ""}\"")
     }
     signingConfigs {
         // The keystore is encrypted with SIGNING_PASSWORD, a repo secret. Without it (local builds)
@@ -47,21 +49,26 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation("androidx.activity:activity-compose:1.10.0")
-    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    implementation("androidx.activity:activity-compose:1.11.0")
+    implementation(platform("androidx.compose:compose-bom:2025.10.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.media3:media3-exoplayer:1.5.1")
-    implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
-    implementation("androidx.media3:media3-ui:1.5.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Stream player (same engine as Movio): page sniffing, ad blocking, offline cache.
+    implementation("androidx.webkit:webkit:1.14.0")
+    implementation("androidx.media3:media3-database:1.8.0")
+    implementation("androidx.media3:media3-datasource:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303") // real org.json; Android's is a stub in unit tests

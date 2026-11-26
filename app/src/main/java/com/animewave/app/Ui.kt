@@ -1028,6 +1028,10 @@ fun DetailContent(
     anime: Anime, saved: Boolean, watchFocus: FocusRequester,
     onBack: () -> Unit, onWatch: (String?) -> Unit, onOpen: (String) -> Unit,
     onPlayEpisode: (Episode) -> Unit,
+    /** Plays episode N (1 for films) in AnimeWave's stream player. */
+    onStream: (Int) -> Unit,
+    /** Episode the viewer is up to, if any. */
+    resumeEpisode: Int? = null,
     selectedSourceId: String, onSourceSelected: (String) -> Unit,
     onToggleSave: () -> Unit, onPlayOwn: () -> Unit,
     providerDiscovery: ProviderDiscoveryResult? = null,
@@ -1050,7 +1054,18 @@ fun DetailContent(
         .map { Episode(it.title, it.thumbnail, it.pageUrl, it.providerName) }
         .ifEmpty { anime.streamingEpisodes }
     val accent = vivid(anime.accent)
-    val watchLabel = official?.let { "Watch on ${it.first}" } ?: "Watch"
+    val film = anime.format.equals("MOVIE", true) || anime.episodes == 1
+    val watchLabel = when {
+        film -> "Play"
+        resumeEpisode != null && resumeEpisode > 1 -> "Continue · Episode $resumeEpisode"
+        else -> "Play Episode 1"
+    }
+    // Every episode with its title, summary and still; capped at what has aired so far.
+    var streamEps by remember(anime.id) { mutableStateOf<List<com.animewave.app.stream.Episode>?>(null) }
+    LaunchedEffect(anime.id) {
+        streamEps = runCatching { com.animewave.app.stream.Tmdb.episodes(anime.id, 1) }.getOrDefault(emptyList())
+            .let { all -> val aired = anime.nextEpisode?.minus(1); if (aired != null) all.filter { it.number <= aired } else all }
+    }
     val findOnSource = {
         val url = if (selectedSourceId == "listed") "https://anilist.co/anime/${anime.id}"
         else AnimeSourceRegistry.searchUrl(selectedSourceId, anime.title)
@@ -1155,14 +1170,11 @@ fun DetailContent(
                         Text(anime.synopsis, color = Soft, fontSize = 15.sp, lineHeight = 23.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.height(22.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            PrimaryButton(watchLabel, Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onWatch(official?.second) }
+                            PrimaryButton(watchLabel, Icons.Filled.PlayArrow, Modifier.focusRequester(watchFocus)) { onStream(if (film) 1 else resumeEpisode ?: 1) }
                             GhostButton(if (saved) "In My List" else "My List", if (saved) Icons.Filled.Check else Icons.Filled.Add, onClick = onToggleSave)
-                            GhostButton("Sources", Icons.AutoMirrored.Filled.List) { showSourcePicker = true }
-                            GhostButton(null, Icons.Filled.Search, description = "Find on ${selectedSource.displayName}", onClick = findOnSource)
                             GhostButton(null, Icons.Filled.AddCircle, description = "Play my own file", onClick = onPlayOwn)
                         }
-                        Spacer(Modifier.height(12.dp))
-                        sourceCaption()
+
                     }
                 }
             }
@@ -1200,12 +1212,10 @@ fun DetailContent(
             }
             Column(Modifier.padding(horizontal = gutter)) {
                 Spacer(Modifier.height(18.dp))
-                PrimaryButton(watchLabel, Icons.Filled.PlayArrow, Modifier.fillMaxWidth().focusRequester(watchFocus)) { onWatch(official?.second) }
+                PrimaryButton(watchLabel, Icons.Filled.PlayArrow, Modifier.fillMaxWidth().focusRequester(watchFocus)) { onStream(if (film) 1 else resumeEpisode ?: 1) }
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     ActionIcon(if (saved) Icons.Filled.Check else Icons.Filled.Add, if (saved) "In My List" else "My List", onClick = onToggleSave)
-                    ActionIcon(Icons.AutoMirrored.Filled.List, "Sources") { showSourcePicker = true }
-                    ActionIcon(Icons.Filled.Search, "Find", onClick = findOnSource)
                     ActionIcon(Icons.Filled.AddCircle, "My file", onClick = onPlayOwn)
                 }
                 Spacer(Modifier.height(22.dp))
@@ -1217,8 +1227,7 @@ fun DetailContent(
                     if (storyOpen) "Show less" else "Read more", color = Violet, fontWeight = FontWeight.Bold, fontSize = 14.sp,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { storyOpen = !storyOpen }.padding(vertical = 8.dp),
                 )
-                Spacer(Modifier.height(6.dp))
-                sourceCaption()
+
             }
         }
         Column {
@@ -1231,7 +1240,13 @@ fun DetailContent(
                     anime.watchLinks.drop(1).distinctBy { it.first }.forEach { (site, url) -> Chip(site, false) { onOpen(url) } }
                 }
             }
-            val entries = remember(discoveredGroups, discoveredEpisodes, anime.id) {
+            val streamEntries = streamEps?.map { e ->
+                EpisodeEntry(
+                    key = "ep:${e.number}", number = e.number, season = null, title = e.name, thumbnail = e.still ?: anime.banner,
+                    url = "stream:${anime.id}:${e.number}", site = e.runtime?.let { "${it}m" } ?: "", native = true, overview = e.overview,
+                )
+            }.orEmpty()
+            val entries = if (streamEntries.isNotEmpty()) streamEntries else remember(discoveredGroups, discoveredEpisodes, anime.id) {
                 if (discoveredGroups.isNotEmpty()) discoveredGroups.map { group ->
                     val first = group.episodes.first()
                     EpisodeEntry(
@@ -1249,14 +1264,17 @@ fun DetailContent(
                     )
                 }
             }
-            SectionTitle("Episodes", caption = entries.size.takeIf { it > 0 }?.let { if (it == 1) "1 listed" else "$it listed" })
-            providerDiscovery?.takeIf { it.providers.isNotEmpty() }?.let { result ->
+            if (!film) SectionTitle("Episodes", caption = entries.size.takeIf { it > 0 }?.let { if (it == 1) "1 episode" else "$it episodes" })
+            if (streamEntries.isEmpty()) providerDiscovery?.takeIf { it.providers.isNotEmpty() }?.let { result ->
                 Text(
                     "Checked " + result.providers.count { it.available } + " provider(s) · " + discoveredEpisodes.size + " episode listing(s)",
                     color = Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = gutter, vertical = 2.dp),
                 )
             }
             when {
+                film -> {}
+                streamEntries.isNotEmpty() -> EpisodeList(streamEntries, accent, progress) { entry -> entry.number?.let(onStream) }
+                streamEps == null -> EpisodeListSkeleton()
                 entries.isNotEmpty() -> EpisodeList(entries, accent, progress) { entry ->
                     // Equivalent listings from several providers: let the viewer choose which page to open.
                     val sources = entry.sources
@@ -1315,6 +1333,7 @@ private fun EmptyNote(title: String, hint: String) {
 private data class EpisodeEntry(
     val key: String, val number: Int?, val season: Int?, val title: String, val thumbnail: String?,
     val url: String, val site: String, val native: Boolean, val sources: List<ProviderEpisode>? = null,
+    val overview: String = "",
 )
 
 /** "Episode 12 - The Storm" → "The Storm"; titles that are only an episode label stay as they are. */
@@ -1375,7 +1394,7 @@ private fun EpisodeRow(entry: EpisodeEntry, accent: Color, watched: Float, onCli
             .border(2.dp, if (focused) Color.White else Color.Transparent, shape)
             .tappable(onClick)
             .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
     ) {
         Box(
             Modifier.width(if (wide) 176.dp else 136.dp).aspectRatio(16f / 9f).clip(thumbShape).background(Panel)
@@ -1405,13 +1424,17 @@ private fun EpisodeRow(entry: EpisodeEntry, accent: Color, watched: Float, onCli
             val status = when {
                 watched >= .9f -> "Watched"
                 watched > 0f -> "${(watched * 100).toInt()}% watched"
-                entry.native -> "Plays in AnimeWave"
+                entry.native -> ""
                 else -> "Opens source page"
             }
             Text(
                 listOf(entry.site, status).filter { it.isNotBlank() }.joinToString("  ·  "),
                 fontSize = 11.5.sp, color = if (entry.native || watched > 0f) Soft else Muted, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp),
+            )
+            if (entry.overview.isNotBlank()) Text(
+                entry.overview, fontSize = if (wide) 13.5.sp else 12.5.sp, lineHeight = if (wide) 19.sp else 17.sp, color = Muted,
+                maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp),
             )
         }
     }

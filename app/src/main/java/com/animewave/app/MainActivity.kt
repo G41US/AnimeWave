@@ -220,6 +220,11 @@ fun AnimeWaveApp() {
         mutableStateOf(prefs.getStringSet("myList", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.toSet())
     }
     var continueWatching by remember { mutableStateOf(PlaybackHistoryStore.list(context)) }
+    // Back from the stream player: show what was just watched.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        continueWatching = PlaybackHistoryStore.list(context)
+        onPauseOrDispose { }
+    }
     var recentSearches by remember {
         mutableStateOf(prefs.getString("recentSearches", null)?.split('\n')?.filter { it.isNotBlank() }.orEmpty())
     }
@@ -237,6 +242,17 @@ fun AnimeWaveApp() {
         saved = if (id in saved) saved - id else saved + id
         prefs.edit().putStringSet("myList", saved.map(Int::toString).toSet()).apply()
     }
+    /** Plays [anime] episode [episode] in the stream player (films: episode 1). */
+    fun stream(anime: Anime, episode: Int) {
+        val film = anime.format.equals("MOVIE", true) || anime.episodes == 1
+        val t = com.animewave.app.stream.Title(
+            anime.id, if (film) com.animewave.app.stream.Kind.MOVIE else com.animewave.app.stream.Kind.TV, anime.title, anime.synopsis,
+            anime.coverXL ?: anime.cover, anime.banner ?: anime.coverXL, anime.year?.toString(), (anime.score ?: 0) / 10.0,
+        )
+        com.animewave.app.stream.PlayerActivity.start(context, t, 1, episode)
+    }
+    fun resumeEpisode(anime: Anime): Int? =
+        com.animewave.app.stream.Store.get(context).continueWatching.firstOrNull { it.title.id == anime.id }?.episode
     fun watch(url: String?) {
         if (url != null) openLink(context, url)
         else toast(context, "No official stream listed for this title. You can play your own files from the Player tab.")
@@ -388,6 +404,7 @@ fun AnimeWaveApp() {
                     DetailContent(
                         anime, saved = anime.id in saved, watchFocus = detailFocus,
                         onBack = { selected = null }, onWatch = ::watch, onOpen = { openLink(context, it) },
+                        onStream = { ep -> stream(anime, ep) }, resumeEpisode = resumeEpisode(anime),
                         selectedSourceId = preferredSource,
                         onSourceSelected = { sourceId ->
                             preferredSource = sourceId
@@ -446,10 +463,18 @@ fun AnimeWaveApp() {
                 when (tab) {
                     "Home" -> HomeContent(
                         home, saved, heroFocus, onPick = pick,
-                        onWatch = { watch(it.watchLinks.firstOrNull()?.second) },
+                        onWatch = { stream(it, resumeEpisode(it) ?: 1) },
                         onToggleSave = { toggleSaved(it.id) },
                         continueWatching = continueWatching,
                         onResume = { record ->
+                            // Episodes watched in the stream player reopen there, at the same episode.
+                            val parts = record.uri.split(":")
+                            if (parts.size == 4 && parts[0] == "stream") {
+                                val kind = if (parts[1] == "movie") com.animewave.app.stream.Kind.MOVIE else com.animewave.app.stream.Kind.TV
+                                val t = com.animewave.app.stream.Title(parts[2].toInt(), kind, record.title.substringBefore(" · "), "", record.artwork, record.artwork, null, 0.0)
+                                com.animewave.app.stream.PlayerActivity.start(context, t, 1, parts[3].toInt())
+                                return@HomeContent
+                            }
                             val item = MediaItem.Builder().setUri(record.uri)
                                 .setMediaMetadata(mediaInfo(record.title, record.artwork, record.key))
                                 .build()

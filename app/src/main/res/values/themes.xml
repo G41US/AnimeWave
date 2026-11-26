@@ -13,4 +13,8 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.AnimeWave</item>
     </style>
+    <style name="Theme.StreamPlayer" parent="Theme.AnimeWave">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+    <string name="downloads">Downloads</string>
 </resources>
