@@ -16,6 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -36,7 +39,7 @@ private class RailItem(val label: String, val icon: Int, val active: Boolean, va
  * it opens to show names; ▶ goes back to the page.
  */
 @Composable
-fun TvRail(tab: Tab, top: Screen?, onTab: (Tab) -> Unit, onDownloads: () -> Unit, onSettings: () -> Unit, open: Boolean, onOpen: (Boolean) -> Unit) {
+fun TvRail(tab: Tab, top: Screen?, onTab: (Tab) -> Unit, onDownloads: () -> Unit, onSettings: () -> Unit, open: Boolean, onOpen: (Boolean) -> Unit, onLeave: () -> Unit = {}) {
     val w by animateDpAsState(if (open) 270.dp else TvRailWidth, tween(220), label = "rail")
     val items = listOf(
         RailItem("Home", R.drawable.ic_home, top == null && tab == Tab.HOME) { onTab(Tab.HOME) },
@@ -52,7 +55,12 @@ fun TvRail(tab: Tab, top: Screen?, onTab: (Tab) -> Unit, onDownloads: () -> Unit
             // Closed: just the icons over the artwork. Open: a dark panel so the labels read.
             .background(if (open) Brush.horizontalGradient(0f to Ink, .72f to Ink.copy(alpha = .94f), 1f to Color.Transparent)
                 else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)))
-            .onFocusChanged { onOpen(it.hasFocus) },
+            .onFocusChanged { onOpen(it.hasFocus) }
+            // Right (or Back) leaves the menu for the page, wherever the page sits under it.
+            .onPreviewKeyEvent { e ->
+                if (e.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                    (e.key == androidx.compose.ui.input.key.Key.DirectionRight || e.key == androidx.compose.ui.input.key.Key.Back)) { onLeave(); true } else false
+            },
     ) {
         Column(Modifier.fillMaxSize().padding(top = 84.dp, bottom = 26.dp)) {
             Spacer(Modifier.weight(1f))

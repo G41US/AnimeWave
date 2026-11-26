@@ -37,6 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -206,9 +208,11 @@ fun App(openRequest: androidx.compose.runtime.MutableState<Title?>) {
                 )
         }
         var railOpen by remember { mutableStateOf(false) }
+        // TV: Right from the menu goes back to where you were on the page.
+        val pageFocus = remember { androidx.compose.ui.focus.FocusRequester() }
         Box(Modifier.fillMaxSize().background(Ink)) {
             // TV: pages sit to the right of the left menu; the clock heads each page.
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().then(if (isTv) Modifier.focusRequester(pageFocus).focusRestorer() else Modifier)) {
             CompositionLocalProvider(LocalTopBar provides if (isTv) ({ TvHeader() }) else null) {
             AnimatedContent(top ?: tab, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) }, label = "screen") { s ->
                 when (s) {
@@ -244,7 +248,8 @@ fun App(openRequest: androidx.compose.runtime.MutableState<Title?>) {
                     Box(Modifier.fillMaxSize().background(Ink.copy(alpha = .6f)))
                 }
                 TvRail(tab, top, onTab = { t -> stack.clear(); tab = t }, onDownloads = { if (top !is Screen.Downloads) stack.add(Screen.Downloads) },
-                    onSettings = { if (top !is Screen.Settings) stack.add(Screen.Settings) }, open = railOpen, onOpen = { railOpen = it })
+                    onSettings = { if (top !is Screen.Settings) stack.add(Screen.Settings) }, open = railOpen, onOpen = { railOpen = it },
+                    onLeave = { runCatching { pageFocus.requestFocus() } })
             }
             if (!isTv) bar()
             if (!wide) Dock(if (top == null) tab else null, { t -> stack.clear(); tab = t }, Modifier.align(Alignment.BottomCenter))
