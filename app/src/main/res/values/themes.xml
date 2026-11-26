@@ -7,12 +7,6 @@
         <item name="android:windowBackground">@color/ink</item>
         <item name="android:colorBackground">@color/ink</item>
     </style>
-    <!-- System splash shown the instant the app is tapped, then the animated title screen. -->
-    <style name="Theme.AnimeWave.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/logo_black</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
-        <item name="postSplashScreenTheme">@style/Theme.AnimeWave</item>
-    </style>
     <style name="Theme.StreamPlayer" parent="Theme.AnimeWave">
         <item name="android:windowBackground">@android:color/black</item>
     </style>

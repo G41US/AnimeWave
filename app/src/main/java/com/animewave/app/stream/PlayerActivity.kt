@@ -804,9 +804,6 @@ class PlayerActivity : ComponentActivity() {
         // Reaching the credits counts as finished, so it won't "resume" into them.
         val pos = if (credits != null && exo.currentPosition >= credits) dur else exo.currentPosition
         store.savePosition(posKey(), pos, dur)
-        // Also into AnimeWave's Continue Watching row and the episode list's progress bars.
-        val key = "stream:${kind.api}:$id:$episode"
-        com.animewave.app.PlaybackHistoryStore.record(this, key, label, pos, dur, art, key)
     }
 
     private suspend fun loadEpisodeInfo() {

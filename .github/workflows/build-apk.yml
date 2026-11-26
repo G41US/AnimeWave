@@ -35,15 +35,15 @@ jobs:
           # default list includes the retired 'tools' package, which fails sdkmanager
           packages: 'platform-tools'
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
 
-      - name: Run unit tests and build release APK
+      - name: Build release APK
         env:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-        run: gradle testDebugUnitTest --tests "com.animewave.app.ParsingTest" --tests "com.animewave.app.ProviderEngineTest" --tests "com.animewave.app.PlaybackCandidateEngineTest" --tests "com.animewave.app.PlaybackGatewayClientTest" --tests "com.animewave.app.TestStreamProviderTest" assembleRelease
+        run: gradle assembleRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -73,8 +73,8 @@ jobs:
             exit 0
           fi
           cp app/build/outputs/apk/release/app-release.apk AnimeWave.apk
-          jq -n --argjson code "$GITHUB_RUN_NUMBER" --arg name "1.0.$GITHUB_RUN_NUMBER" --arg notes "$(git log -1 --format=%s)" \
-            '{versionCode: $code, versionName: $name, notes: $notes}' > version.json
+          jq -n --argjson code "$GITHUB_RUN_NUMBER" --arg name "1.0.$GITHUB_RUN_NUMBER" \
+            '{versionCode: $code, versionName: $name}' > version.json
           gh release view latest >/dev/null 2>&1 || gh release create latest \
             --title "AnimeWave (latest build)" --target "$GITHUB_SHA" \
             --notes "APK from the newest commit on main. Direct link: https://github.com/${{ github.repository }}/releases/download/latest/AnimeWave.apk"

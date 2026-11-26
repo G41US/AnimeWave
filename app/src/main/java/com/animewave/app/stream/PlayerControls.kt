@@ -427,7 +427,7 @@ fun PlayerControls(player: Player, host: PlayerHost, visible: Boolean, onVisible
                     }
                     Text(when (p) {
                         Sheet.SETTINGS -> "Settings"; Sheet.QUALITY -> "Quality"; Sheet.SPEED -> "Speed"
-                        Sheet.SUBTITLES -> "Subtitles"; Sheet.STYLE -> "Subtitle style"; Sheet.EPISODES -> "Season ${host.season}"; Sheet.AUDIO -> "Audio"
+                        Sheet.SUBTITLES -> "Subtitles"; Sheet.STYLE -> "Subtitle style"; Sheet.EPISODES -> "Episodes"; Sheet.AUDIO -> "Audio"
                     }, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, style = jakarta(), modifier = Modifier.weight(1f))
                     Plain(R.drawable.ic_close, null, 20.dp, Modifier.focusRequester(sheetFocus)) { sheet = null }
                 }
