@@ -726,10 +726,10 @@ class PlayerActivity : ComponentActivity() {
             .build()
         if (s.url != speechUrl) { speechUrl = s.url; speech.reset(); fitFor.clear() }
         speech.seeked(0)
-        exo.setMediaSource(DefaultMediaSourceFactory(androidx.media3.datasource.DefaultDataSource.Factory(this, http)).createMediaSource(item))
+        exo.setMediaSource(DefaultMediaSourceFactory(UnwrapDataSource.Factory(androidx.media3.datasource.DefaultDataSource.Factory(this, http))).createMediaSource(item))
         exo.prepare()
         lastHeaders = headers
-        previewSource = { DefaultMediaSourceFactory(androidx.media3.datasource.DefaultDataSource.Factory(this, http)).createMediaSource(MediaItem.Builder().setUri(s.url).setMimeType(if (s.hls) MimeTypes.APPLICATION_M3U8 else null).build()) }
+        previewSource = { DefaultMediaSourceFactory(UnwrapDataSource.Factory(androidx.media3.datasource.DefaultDataSource.Factory(this, http))).createMediaSource(MediaItem.Builder().setUri(s.url).setMimeType(if (s.hls) MimeTypes.APPLICATION_M3U8 else null).build()) }
         releasePreview()
     }
 
@@ -851,9 +851,9 @@ class PlayerActivity : ComponentActivity() {
         }
         val item = d.request.toMediaItem().buildUpon().setSubtitleConfigurations(listOfNotNull(sub)).build()
         speechUrl = null; speech.reset(); speech.seeked(0)
-        exo.setMediaSource(DefaultMediaSourceFactory(androidx.media3.datasource.DefaultDataSource.Factory(this, Downloads.offlineFactory(this))).createMediaSource(item))
+        exo.setMediaSource(DefaultMediaSourceFactory(UnwrapDataSource.Factory(androidx.media3.datasource.DefaultDataSource.Factory(this, Downloads.offlineFactory(this)))).createMediaSource(item))
         exo.prepare()
-        previewSource = { DefaultMediaSourceFactory(androidx.media3.datasource.DefaultDataSource.Factory(this, Downloads.offlineFactory(this))).createMediaSource(d.request.toMediaItem()) }
+        previewSource = { DefaultMediaSourceFactory(UnwrapDataSource.Factory(androidx.media3.datasource.DefaultDataSource.Factory(this, Downloads.offlineFactory(this)))).createMediaSource(d.request.toMediaItem()) }
         trying = Stream(d.request.uri.toString(), emptyMap(), hls = true)
         status = "Playing from Downloads"
         lifecycleScope.launch { segments = withLearned(Segments.find(kind, this@PlayerActivity.id, season, episode)) }
