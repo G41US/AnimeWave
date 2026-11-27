@@ -196,6 +196,8 @@ class PlayerActivity : ComponentActivity() {
 
     private val source get() = Sources.all[sourceIndex]
 
+    private val bridge by lazy { Bridge() }
+
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         I18n.init(this)
@@ -488,6 +490,7 @@ class PlayerActivity : ComponentActivity() {
         }
         exo.stop(); exo.clearMediaItems()
         playerView.visibility = View.GONE
+        bridge.hidden = true
         phase = Phase.FINDING
         status = if (autoTried > 0) "Finding the best stream" else "Loading"
         webView.stopLoading()
@@ -498,6 +501,8 @@ class PlayerActivity : ComponentActivity() {
             status = "Resuming"
             trying = st
             play(st)
+            // A remembered link that hangs instead of failing: drop it and look again.
+            main.postDelayed({ if (token == attempt && phase == Phase.FINDING && trying == st) onStreamFailed() }, 15_000)
             return
         }
         fromCache = false
@@ -653,6 +658,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun showWeb(reload: Boolean) {
+        bridge.hidden = false
         if (phase == Phase.NATIVE) savePosition()
         exo.pause()
         playerView.visibility = View.GONE
@@ -677,10 +683,18 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun tryNext() {
-        val next = candidates.sortedByDescending { it.hls }.firstOrNull { it.url !in rejected } ?: run { trying = null; return }
+        val next = candidates.sortedByDescending { it.hls }.firstOrNull { it.url !in rejected } ?: run {
+            trying = null
+            // Nothing else caught yet: give the page a few seconds, then move on.
+            val token = attempt
+            main.postDelayed({ if (token == attempt && phase == Phase.FINDING && trying == null) sourceFailed() }, 8_000)
+            return
+        }
         trying = next
         status = "Almost ready"
         val token = attempt
+        // A stream that never becomes playable counts as failed.
+        main.postDelayed({ if (token == attempt && phase == Phase.FINDING && trying == next) onStreamFailed() }, 25_000)
         lifecycleScope.launch {
             kotlinx.coroutines.withTimeoutOrNull(1_200) { subtitleJob?.join() }
             if (token == attempt && trying == next) play(next)
@@ -1128,6 +1142,11 @@ class PlayerActivity : ComponentActivity() {
         @JavascriptInterface
         fun state(s: String) {}
 
+        /** True while the page only runs out of sight to find the stream: its own video stays silent. */
+        @Volatile var hidden = true
+        @JavascriptInterface
+        fun hush(): Boolean = hidden
+
         @JavascriptInterface
         fun playing() {
             main.postDelayed({ if (phase == Phase.FINDING && trying == null && !source.direct) showWeb(reload = false) }, 2500)
@@ -1168,7 +1187,7 @@ class PlayerActivity : ComponentActivity() {
         webView.isVerticalScrollBarEnabled = false
         webView.isHorizontalScrollBarEnabled = false
         webView.setOnLongClickListener { true }
-        webView.addJavascriptInterface(Bridge(), "MovioPlayer")
+        webView.addJavascriptInterface(bridge, "MovioPlayer")
 
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addDocumentStartJavaScript(webView, feelJs, setOf("*"))
@@ -1195,7 +1214,8 @@ class PlayerActivity : ComponentActivity() {
                 if (!sameSite(host, pageHost) && AdBlock.blocks(host)) return empty
                 val u = uri.toString()
                 val path = (uri.path ?: "").lowercase()
-                if ((path.endsWith(".vtt") || path.endsWith(".srt")) && !AdBlock.blocks(host)) main.post { if (phase == Phase.FINDING) pageSubs.add(u) }
+                val subFile = path.endsWith(".vtt") || path.endsWith(".srt") || Regex("\\.(vtt|srt)(&|$)", RegexOption.IGNORE_CASE).containsMatchIn(uri.query.orEmpty())
+                if (subFile && !AdBlock.blocks(host)) main.post { if (phase == Phase.FINDING && u !in pageSubs) pageSubs.add(u) }
                 if (u.contains(".m3u8", ignoreCase = true) || Regex("/(stream|master|playlist|manifest)(\\.\\w+)?$").containsMatchIn(path) ||
                     (path.contains("/hls/") && !Regex("\\.(ts|m4s|mp4|aac|key|jpg|jpeg|png|webp|gif|vtt|js|css)$").containsMatchIn(path))) {
                     val headers = request.requestHeaders.orEmpty()

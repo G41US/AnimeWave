@@ -4,7 +4,11 @@
   if (window.__ms) return; window.__ms = 1;
   var B = window.MovioPlayer;
   if (!B) return;
-  function abs(u) { try { return new URL(u, location.href).href; } catch (e) { return null; } }
+  // While the page only runs out of sight to find the stream, keep its own video silent.
+  setInterval(function () {
+    try { if (B.hush && B.hush()) document.querySelectorAll('video,audio').forEach(function (v) { v.muted = true; v.volume = 0; }); } catch (e) {}
+  }, 400);
+    function abs(u) { try { return new URL(u, location.href).href; } catch (e) { return null; } }
   function report(u, ct, text) {
     u = abs(u); if (!u || u.indexOf('blob:') === 0 || u.indexOf('data:') === 0) return;
     try {
