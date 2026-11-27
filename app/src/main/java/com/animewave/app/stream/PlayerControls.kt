@@ -114,6 +114,9 @@ interface PlayerHost {
     val autoSkip: Boolean
     val nightMode: Boolean
     fun toggleNightMode()
+    /** Anime: English dub (true) or Japanese with subtitles. */
+    val dub: Boolean
+    fun toggleDub()
     /** Exact intro/recap/credits/preview times for what's playing (may be empty). */
     val segments: List<Segment>
     /** Small muted video view used for seek previews. */
@@ -436,6 +439,7 @@ fun PlayerControls(player: Player, host: PlayerHost, visible: Boolean, onVisible
                     Sheet.SETTINGS -> Column(Modifier.verticalScroll(rememberScrollState())) {
                         val q = currentQuality(player)
                         SettingRow("Quality", q, R.drawable.ic_settings) { sheet = Sheet.QUALITY }
+                        SettingRow("Language", if (host.dub) "English dub" else "Japanese · subtitles", R.drawable.ic_cc) { sheet = null; host.toggleDub() }
                         SettingRow("Audio", currentAudio(player), R.drawable.ic_audio) { sheet = Sheet.AUDIO }
                         SettingRow("Night mode", if (host.nightMode) "On · quieter bangs, clearer voices" else "Off", R.drawable.ic_moon) { host.toggleNightMode() }
                         SettingRow("Speed", if (player.playbackParameters.speed == 1f) "Normal" else "${player.playbackParameters.speed}x", R.drawable.ic_speed) { sheet = Sheet.SPEED }

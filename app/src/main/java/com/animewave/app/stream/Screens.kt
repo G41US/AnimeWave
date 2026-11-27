@@ -444,6 +444,8 @@ fun SettingsScreen(version: String, update: UpdateState, blocked: Int, store: St
             Card {
                 Label("Playback")
                 Spacer(Modifier.height(6.dp))
+                var dub by remember { mutableStateOf(store.dub) }
+                ToggleRow("English dub", "Plays the English version when there is one; otherwise Japanese with subtitles.", dub) { dub = it; store.dub = it }
                 var autoplay by remember { mutableStateOf(store.autoplayNext) }
                 ToggleRow("Autoplay next episode", "Plays the next episode after a short countdown.", autoplay) { autoplay = it; store.autoplayNext = it }
                 var autoSkip by remember { mutableStateOf(store.autoSkip) }

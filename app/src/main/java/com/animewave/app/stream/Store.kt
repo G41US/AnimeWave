@@ -74,6 +74,10 @@ class Store private constructor(context: Context) {
     var autoplayNext: Boolean
         get() = misc.getBoolean("autoplay", true)
         set(v) = misc.edit().putBoolean("autoplay", v).apply()
+    /** Anime: English dub instead of Japanese with subtitles, when a dub exists. */
+    var dub: Boolean
+        get() = misc.getBoolean("dub", false)
+        set(v) = misc.edit().putBoolean("dub", v).apply()
     var autoSkip: Boolean
         get() = misc.getBoolean("auto_skip", false)
         set(v) = misc.edit().putBoolean("auto_skip", v).apply()

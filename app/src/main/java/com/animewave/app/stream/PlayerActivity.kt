@@ -314,7 +314,8 @@ class PlayerActivity : ComponentActivity() {
         val off = offlineId
         if (off != null) playOffline(off) else {
             val t = title
-            val perTitle = t?.let { store.sourceFor(it) }
+            // A hand-picked Wave version gives way to the sub/dub setting.
+            val perTitle = t?.let { store.sourceFor(it) }?.takeUnless { it.startsWith("Wave") }
             // Per-title pick, then the one you chose, then whichever source has been fastest lately.
             // Shows: your pick for this show, else Club first. Films: your pick, your default, else the fastest.
             // Shows: your pick for this anime, else Wave first. Look up the other catalogues' ids first.
@@ -538,6 +539,8 @@ class PlayerActivity : ComponentActivity() {
         if (auto && autoTried < 5) {
             autoTried++
             val next = order().firstOrNull { it !in failedSources }
+            if (source.name == "Wave Dub" && next != null)
+                Toast.makeText(this, "No English dub for this episode — playing Japanese with subtitles", Toast.LENGTH_LONG).show()
             if (next != null) { start(next, automatic = true); return }
         }
         if (source.direct) { phase = Phase.FAILED; return }
@@ -635,9 +638,10 @@ class PlayerActivity : ComponentActivity() {
 
     private fun fastest(): List<Int> = Sources.fallbackOrder.sortedBy { prefs.getLong("speed:${Sources.all[it].name}", 12_000L) }
 
-    /** Anime goes Wave (made for anime) → Club → Nero → Peach → Flixify, then the rest by speed. */
+    /** Anime goes Wave (dub first if chosen) → Club → Nero → Peach → Flixify, then the rest by speed. */
     private fun order(): List<Int> {
-        val fixed = listOf("Wave", "Club", "Nero", "Peach", "Flixify").map { Sources.index(it) }.distinct()
+        val waves = if (store.dub) listOf("Wave Dub", "Wave") else listOf("Wave")
+        val fixed = (waves + listOf("Club", "Nero", "Peach", "Flixify")).map { Sources.index(it) }.distinct()
         return fixed + fastest().filter { it !in fixed }
     }
 
@@ -1042,6 +1046,12 @@ class PlayerActivity : ComponentActivity() {
         override val autoplay get() = store.autoplayNext
         override val autoSkip get() = store.autoSkip
         override val segments get() = this@PlayerActivity.segments
+        override val dub get() = store.dub
+        override fun toggleDub() {
+            store.dub = !store.dub
+            failedSources.clear(); autoTried = 0
+            start(Sources.index(if (store.dub) "Wave Dub" else "Wave"), automatic = true)
+        }
         override val nightMode get() = nightOn
         override fun toggleNightMode() { nightOn = !nightOn; prefs.edit().putBoolean("night", nightOn).apply(); applyNight() }
         override val previewView: View? get() = if (previewSource != null) previewTexture else null
